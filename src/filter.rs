@@ -1,11 +1,11 @@
-use bitcoin_utxo::cache::utxo::*;
-use bitcoin::{Block, BlockHash, OutPoint, Script};
+use super::utxo::FilterCoin;
 use bitcoin::util::bip158;
+use bitcoin::{Block, BlockHash, OutPoint, Script};
+use bitcoin_utxo::cache::utxo::*;
 use ergvein_filters::btc::ErgveinFilter;
-use rocksdb::{WriteBatch, DB, WriteOptions};
+use rocksdb::{WriteBatch, WriteOptions, DB};
 use std::collections::HashMap;
 use std::sync::Arc;
-use super::utxo::FilterCoin;
 use tokio::time::Duration;
 
 pub async fn generate_filter(

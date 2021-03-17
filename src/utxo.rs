@@ -1,7 +1,7 @@
-use std::io;
 use bitcoin::consensus::encode::{self, Decodable, Encodable};
+use bitcoin::{BlockHeader, Script, Transaction};
 use bitcoin_utxo::utxo::UtxoState;
-use bitcoin::{Script, BlockHeader, Transaction};
+use std::io;
 
 #[derive(Debug, Clone)]
 pub struct FilterCoin {
