@@ -3,6 +3,10 @@ extern crate bitcoin;
 extern crate bitcoin_utxo;
 extern crate ergvein_filters;
 
+pub mod utxo;
+
+use crate::utxo::FilterCoin;
+
 use futures::future::{AbortHandle, Abortable, Aborted};
 use futures::pin_mut;
 use futures::stream;
@@ -13,52 +17,21 @@ use rocksdb::{WriteBatch, DB, WriteOptions};
 use hex;
 use std::collections::HashMap;
 use std::error::Error;
-use std::io;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use std::{env, process};
 use tokio::time::Duration;
 
-use bitcoin::consensus::encode;
-use bitcoin::consensus::encode::{Decodable, Encodable};
 use bitcoin::network::constants;
 use bitcoin::util::bip158;
 use ergvein_filters::btc::ErgveinFilter;
-use bitcoin::{Block, BlockHash, BlockHeader, OutPoint, Script, Transaction};
+use bitcoin::{Block, BlockHash, OutPoint, Script};
 
 use bitcoin_utxo::cache::utxo::*;
 use bitcoin_utxo::connection::connect;
 use bitcoin_utxo::storage::init_storage;
 use bitcoin_utxo::sync::headers::sync_headers;
 use bitcoin_utxo::sync::utxo::*;
-use bitcoin_utxo::utxo::UtxoState;
-
-#[derive(Debug, Clone)]
-struct FilterCoin {
-    script: Script,
-}
-
-impl UtxoState for FilterCoin {
-    fn new_utxo(_height: u32, _header: &BlockHeader, tx: &Transaction, vout: u32) -> Self {
-        FilterCoin {
-            script: tx.output[vout as usize].script_pubkey.clone(),
-        }
-    }
-}
-
-impl Encodable for FilterCoin {
-    fn consensus_encode<W: io::Write>(&self, writer: W) -> Result<usize, io::Error> {
-        let len = self.script.consensus_encode(writer)?;
-        Ok(len)
-    }
-}
-impl Decodable for FilterCoin {
-    fn consensus_decode<D: io::Read>(mut d: D) -> Result<Self, encode::Error> {
-        Ok(FilterCoin {
-            script: Decodable::consensus_decode(&mut d)?,
-        })
-    }
-}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
