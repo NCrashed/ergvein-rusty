@@ -297,6 +297,7 @@ dependencies = [
  "bitcoin-utxo",
  "bitcoin_hashes",
  "chrono",
+ "clap",
  "dashmap",
  "ergvein-filters",
  "ergvein-protocol",
