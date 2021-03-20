@@ -56,6 +56,10 @@ pub fn store_filter(db: Arc<DB>, hash: &BlockHash, filter: ErgveinFilter) {
 pub async fn sync_filters(
     db: Arc<DB>,
     cache: Arc<UtxoCache<FilterCoin>>,
+    fork_height: u32,
+    max_coins: usize,
+    flush_period: u32,
+    block_batch: usize,
 ) -> (
     impl futures::Sink<NetworkMessage, Error = encode::Error>,
     impl Unpin + futures::Stream<Item = NetworkMessage>,
@@ -65,10 +69,10 @@ pub async fn sync_filters(
     let cache = cache.clone();
     let (sync_future, utxo_stream, utxo_sink) =
         sync_utxo_with(db.clone(), cache.clone(),
-            UTXO_FORK_MAX_DEPTH,
-            UTXO_CACHE_MAX_COINS,
-            UTXO_FLUSH_PERIOD,
-            DEF_BLOCK_BATCH,
+            fork_height,
+            max_coins,
+            flush_period,
+            block_batch,
             move |h, block| {
                 let block = block.clone();
                 let db = db.clone();
