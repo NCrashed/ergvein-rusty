@@ -1,6 +1,7 @@
 // The example calculates BIP158 filters for each block
-extern crate bitcoin;
 extern crate bitcoin_utxo;
+extern crate bitcoin;
+extern crate clap;
 extern crate ergvein_filters;
 
 pub mod filter;
@@ -26,22 +27,52 @@ use bitcoin_utxo::connection::connect;
 use bitcoin_utxo::storage::init_storage;
 use bitcoin_utxo::sync::headers::sync_headers;
 
+use clap::{crate_version, App, Arg};
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
-    let args: Vec<String> = env::args().collect();
-    if args.len() < 2 {
-        eprintln!("not enough arguments");
-        process::exit(1);
-    }
+    let matches = App::new("ergvein-rusty")
+        .about("P2P node to support ergvein mobile wallet")
+        .version(crate_version!())
+        .arg(Arg::with_name("host")
+            .short("n")
+            .long("host")
+            .value_name("HOST")
+            .help("Listen network interface")
+            .default_value("127.0.0.1")
+            .takes_value(true))
+        .arg(Arg::with_name("port")
+            .short("p")
+            .long("port")
+            .value_name("PORT")
+            .help("Listen port")
+            .default_value("8667")
+            .takes_value(true))
+        .arg(Arg::with_name("bitcoin")
+            .short("b")
+            .long("bitcoin")
+            .value_name("BITCOIN_NODE")
+            .help("Host and port for bitcoin node to use")
+            .default_value("127.0.0.1:8333")
+            .multiple(true)
+            .takes_value(true))
+        .arg(Arg::with_name("data")
+            .short("d")
+            .long("data")
+            .value_name("DATABASE_PATH")
+            .help("Directory where to store application state")
+            .default_value("./ergvein_rusty_db")
+            .takes_value(true))
+        .get_matches();
 
-    let str_address = &args[1];
+    let str_address = matches.value_of("bitcoin").unwrap();
 
     let address: SocketAddr = str_address.parse().unwrap_or_else(|error| {
         eprintln!("Error parsing address: {:?}", error);
         process::exit(1);
     });
 
-    let dbname = "./filters_utxo_db";
+    let dbname = matches.value_of("data").unwrap();
     println!("Opening database {:?}", dbname);
     let db = Arc::new(init_storage(dbname, vec!["filters"])?);
     println!("Creating cache");
