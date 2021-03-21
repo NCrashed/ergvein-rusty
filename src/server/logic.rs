@@ -11,12 +11,13 @@ use tokio_stream::wrappers::UnboundedReceiverStream;
 use tokio::sync::mpsc;
 use tokio::time::Duration;
 
+/// Amount of seconds connection is open after handshake
+pub const CONNECTION_DROP_TIMEOUT: u64 = 60*20;
 
 #[derive(Debug)]
 pub enum IndexerError {
     HandshakeSendError,
     HandshakeTimeout,
-    HandshakeLagged,
     HandshakeRecv,
     HandshakeViolation,
     HandshakeNonceIdentical,
@@ -37,7 +38,21 @@ pub async fn indexer_logic(
     let logic_future = {
         let db = db.clone();
         async move {
-            handshake(addr, db, &mut in_reciver, &out_sender).await?;
+            handshake(addr.clone(), db, &mut in_reciver, &out_sender).await?;
+
+            let timeout = tokio::time::sleep(Duration::from_secs(CONNECTION_DROP_TIMEOUT));
+            tokio::pin!(timeout);
+
+            let mut close = false;
+            while !close {
+                tokio::select! {
+                    _ = &mut timeout => {
+                        eprintln!("Connection closed by mandatory timeout {}", addr);
+                        close = true;
+                    }
+                }
+            }
+
             Ok(())
         }
     };
