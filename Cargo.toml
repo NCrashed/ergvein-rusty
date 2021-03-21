@@ -9,8 +9,9 @@ edition = "2018"
 [dependencies]
 bitcoin =  { version = "^0.26", features = [ "rand" ] }
 bitcoin_hashes = "^0.9"
-# bitcoin-utxo = { git = "https://github.com/ncrashed/bitcoin-utxo" }
-bitcoin-utxo = { path = "../bitcoin-utxo" }
+bitcoin-utxo = { git = "https://github.com/ncrashed/bitcoin-utxo" }
+# bitcoin-utxo = { path = "../bitcoin-utxo" }
+byteorder = "1"
 bytes = "1"
 chrono = "^0.4"
 clap = "2.33.3"

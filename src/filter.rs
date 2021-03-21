@@ -4,6 +4,7 @@ use bitcoin::{Block, BlockHash, OutPoint, Script};
 use bitcoin::consensus::encode;
 use bitcoin::network::message::NetworkMessage;
 use bitcoin::util::bip158;
+use byteorder::{BigEndian, ByteOrder};
 use ergvein_filters::btc::ErgveinFilter;
 use futures::future::{AbortHandle, Abortable, Aborted};
 use rocksdb::{WriteBatch, WriteOptions, DB};
@@ -42,10 +43,29 @@ pub async fn generate_filter(
     .unwrap()
 }
 
-pub fn store_filter(db: Arc<DB>, hash: &BlockHash, filter: ErgveinFilter) {
+fn height_value(h: u32) -> [u8; 4] {
+    let mut buf = [0; 4];
+    BigEndian::write_u32(&mut buf, h);
+    buf
+}
+
+pub fn get_filters_height(db: Arc<DB>) -> u32 {
     let cf = db.cf_handle("filters").unwrap();
+    db.get_cf(cf, b"height")
+        .unwrap()
+        .map_or(0, |bs| BigEndian::read_u32(&bs))
+}
+
+pub fn store_filter(db: Arc<DB>, hash: &BlockHash, height: u32, filter: ErgveinFilter) {
+    let cf = db.cf_handle("filters").unwrap();
+    let curh = db.get_cf(cf, b"height")
+        .unwrap()
+        .map_or(0, |bs| BigEndian::read_u32(&bs));
     let mut batch = WriteBatch::default();
     batch.put_cf(cf, hash, filter.content);
+    if height > curh {
+        batch.put_cf(cf, b"height", height_value(height));
+    }
 
     let mut write_options = WriteOptions::default();
     write_options.set_sync(false);
@@ -87,7 +107,7 @@ pub async fn sync_filters(
                             hex::encode(&filter.content)
                         );
                     }
-                    store_filter(db, &hash, filter);
+                    store_filter(db, &hash, h, filter);
                 }
             })
         .await;

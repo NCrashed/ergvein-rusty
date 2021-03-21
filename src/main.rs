@@ -1,6 +1,7 @@
 // The example calculates BIP158 filters for each block
 extern crate bitcoin_utxo;
 extern crate bitcoin;
+extern crate byteorder;
 extern crate bytes;
 extern crate clap;
 extern crate ergvein_filters;
