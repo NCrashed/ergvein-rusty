@@ -1,14 +1,20 @@
 // The example calculates BIP158 filters for each block
 extern crate bitcoin_utxo;
 extern crate bitcoin;
+extern crate bytes;
 extern crate clap;
 extern crate ergvein_filters;
+extern crate tokio_stream;
+extern crate tokio_util;
+extern crate tokio;
 
 pub mod filter;
 pub mod utxo;
+pub mod server;
 
 use crate::filter::*;
 use crate::utxo::FilterCoin;
+use crate::server::connection::indexer_server;
 
 use futures::pin_mut;
 use futures::stream;
@@ -106,6 +112,19 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let db = Arc::new(init_storage(dbname, vec!["filters"])?);
     println!("Creating cache");
     let cache = Arc::new(new_cache::<FilterCoin>());
+
+    let listen_addr = format!("{}:{}", matches.value_of("host").unwrap(), value_t!(matches, "port", u32).unwrap());
+    tokio::spawn({
+        let db = db.clone();
+        async move {
+            match indexer_server(listen_addr, db).await {
+                Err(err) => {
+                    eprintln!("Failed to listen TCP server: {}", err);
+                }
+                Ok(_) => (),
+            }
+        }
+    });
 
     loop {
         let (headers_stream, headers_sink) = sync_headers(db.clone()).await;
