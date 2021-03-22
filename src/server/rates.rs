@@ -1,7 +1,6 @@
 use dashmap::DashMap;
 use ergvein_protocol::message::*;
-// use reqwest::Error;
-use std::error::Error;
+use reqwest::Error;
 use serde::Deserialize;
 use std::sync::{Arc, Mutex};
 use tokio::time::Duration;
@@ -33,7 +32,7 @@ fn f64_to_centi(a: f64) -> Rate {
     Rate::new((a * 100.).round() as u64)
 }
 
-async fn request_btc_rates() -> Result<DashMap<Fiat, Rate>, Box<dyn Error>> {
+async fn request_btc_rates() -> Result<DashMap<Fiat, Rate>, Error> {
     let request_url = "https://api.coinbase.com/v2/exchange-rates?currency=BTC";
     let response : CoinbaseResp<CoinbaseRates> = reqwest::get(request_url).await?.json().await?;
     let rates = DashMap::new();
