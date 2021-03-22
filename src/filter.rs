@@ -1,4 +1,5 @@
 use bitcoin_utxo::cache::utxo::*;
+use bitcoin_utxo::storage::chain::*;
 use bitcoin_utxo::sync::utxo::*;
 use bitcoin::{Block, BlockHash, OutPoint, Script};
 use bitcoin::consensus::encode;
@@ -71,6 +72,22 @@ pub fn store_filter(db: Arc<DB>, hash: &BlockHash, height: u32, filter: ErgveinF
     write_options.set_sync(false);
     write_options.disable_wal(true);
     db.write_opt(batch, &write_options).unwrap();
+}
+
+pub fn read_filters(db: Arc<DB>, start: u32, amount: u32) -> Vec<(BlockHash, ErgveinFilter)> {
+    let cf = db.cf_handle("filters").unwrap();
+    let mut res = vec![];
+    for h in start .. start+amount {
+        if let Some(hash) = get_block_hash(&db, h) {
+            if let Some(filter) = db.get_cf(cf, hash).unwrap() {
+                let efilter = ErgveinFilter {
+                        content: filter,
+                    };
+                res.push((hash, efilter));
+            }
+        }
+    }
+    res
 }
 
 pub async fn sync_filters(

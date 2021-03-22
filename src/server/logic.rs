@@ -1,5 +1,5 @@
 use bitcoin_utxo::storage::chain::get_chain_height;
-use crate::filter::get_filters_height;
+use crate::filter::*;
 use ergvein_protocol::message::*;
 use futures::{Future, Stream, Sink};
 use futures::sink;
@@ -13,6 +13,8 @@ use tokio::time::Duration;
 
 /// Amount of seconds connection is open after handshake
 pub const CONNECTION_DROP_TIMEOUT: u64 = 60*20;
+/// Limit to amount of filters that can be requested via the server in one request
+pub const MAX_FILTERS_REQ: u32 = 2000;
 
 #[derive(Debug)]
 pub enum IndexerError {
@@ -22,6 +24,7 @@ pub enum IndexerError {
     HandshakeViolation,
     HandshakeNonceIdentical,
     NotCompatible(Version),
+    NotSupportedCurrency(Currency),
 }
 
 pub async fn indexer_logic(
@@ -159,11 +162,53 @@ fn build_version_message(db: Arc<DB>) -> VersionMessage {
     }
 }
 
+fn is_supported_currency(currency: &Currency) -> bool {
+    *currency == Currency::Btc
+}
+
 async fn serve_filters(
     addr: String,
     db: Arc<DB>,
     msg_reciever: &mut mpsc::UnboundedReceiver<Message>,
     msg_sender: &mpsc::UnboundedSender<Message>,
 ) -> Result<(), IndexerError> {
-    Ok(())
+    loop {
+        if let Some(msg) = msg_reciever.recv().await {
+            match &msg {
+                Message::GetFilters(req) => {
+                    if !is_supported_currency(&req.currency) {
+                        msg_sender.send(Message::Reject(RejectMessage{
+                            id: msg.id(),
+                            data: RejectData::InternalError,
+                            message: format!("Not supported currency {:?}", req.currency),
+                        })).unwrap();
+                        Err(IndexerError::NotSupportedCurrency(req.currency))?
+                    }
+                    let h = get_filters_height(db.clone());
+                    if req.start > h as u64 {
+                        let resp = Message::Filters(FiltersResp {
+                            currency: req.currency,
+                            filters: vec![],
+                        });
+                        msg_sender.send(resp).unwrap();
+                    } else {
+                        let amount = req.amount.min(MAX_FILTERS_REQ);
+                        let filters = read_filters(db.clone(), req.start as u32, amount)
+                        .iter()
+                        .map(|(h, f)| Filter {
+                            block_id: h.to_vec(),
+                            filter: f.content.clone()
+                        })
+                        .collect();
+                        let resp = Message::Filters(FiltersResp {
+                            currency: req.currency,
+                            filters: filters,
+                        });
+                        msg_sender.send(resp).unwrap();
+                    }
+                }
+                _ => (),
+            }
+        }
+    }
 }
