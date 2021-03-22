@@ -319,7 +319,7 @@ dependencies = [
 [[package]]
 name = "ergvein-protocol"
 version = "0.1.0"
-source = "git+https://github.com/ncrashed/ergvein-protocol#5f1052fb0b92ce014c7b1f538a4b3672ab885706"
+source = "git+https://github.com/ncrashed/ergvein-protocol#3370c0ed20f122abc9ce7cf32c3b7fbd5f5fe0f8"
 dependencies = [
  "consensus-encode",
  "fix",
