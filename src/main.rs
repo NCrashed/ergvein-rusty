@@ -5,9 +5,11 @@ extern crate byteorder;
 extern crate bytes;
 extern crate clap;
 extern crate ergvein_filters;
-extern crate tokio;
+extern crate reqwest;
+extern crate serde;
 extern crate tokio_stream;
 extern crate tokio_util;
+extern crate tokio;
 
 pub mod filter;
 pub mod server;
@@ -16,6 +18,7 @@ pub mod utxo;
 use crate::filter::*;
 use crate::server::connection::indexer_server;
 use crate::utxo::FilterCoin;
+use crate::server::fee::{FeesCache, fees_requester};
 
 use futures::pin_mut;
 use futures::stream;
@@ -24,6 +27,7 @@ use futures::SinkExt;
 use std::error::Error;
 use std::net::SocketAddr;
 use std::sync::Arc;
+use std::sync::Mutex;
 use std::{env, process};
 use tokio::time::Duration;
 
@@ -129,6 +133,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let db = Arc::new(init_storage(dbname, vec!["filters"])?);
     println!("Creating cache");
     let cache = Arc::new(new_cache::<FilterCoin>());
+    let fee_cache = Arc::new(Mutex::new(FeesCache::default()));
+
+    tokio::spawn(async move {
+        fees_requester(fee_cache).await;
+    });
 
     let listen_addr = format!(
         "{}:{}",
