@@ -50,14 +50,25 @@ fn height_value(h: u32) -> [u8; 4] {
     buf
 }
 
-pub fn get_filters_height(db: Arc<DB>) -> u32 {
+pub fn get_filters_height(db: &DB) -> u32 {
     let cf = db.cf_handle("filters").unwrap();
     db.get_cf(cf, b"height")
         .unwrap()
         .map_or(0, |bs| BigEndian::read_u32(&bs))
 }
 
-pub fn store_filter(db: Arc<DB>, hash: &BlockHash, height: u32, filter: ErgveinFilter) {
+/// Makes futures that polls chain height and finishes when it is changed
+pub async fn filters_height_changes(db: &DB, dur: Duration) -> u32 {
+    let starth = get_filters_height(db);
+    let mut curh = starth;
+    while curh == starth {
+        tokio::time::sleep(dur).await;
+        curh = get_filters_height(db);
+    }
+    curh
+}
+
+pub fn store_filter(db: &DB, hash: &BlockHash, height: u32, filter: ErgveinFilter) {
     let cf = db.cf_handle("filters").unwrap();
     let curh = db.get_cf(cf, b"height")
         .unwrap()
@@ -74,7 +85,7 @@ pub fn store_filter(db: Arc<DB>, hash: &BlockHash, height: u32, filter: ErgveinF
     db.write_opt(batch, &write_options).unwrap();
 }
 
-pub fn read_filters(db: Arc<DB>, start: u32, amount: u32) -> Vec<(BlockHash, ErgveinFilter)> {
+pub fn read_filters(db: &DB, start: u32, amount: u32) -> Vec<(BlockHash, ErgveinFilter)> {
     let cf = db.cf_handle("filters").unwrap();
     let mut res = vec![];
     for h in start .. start+amount {
@@ -124,7 +135,7 @@ pub async fn sync_filters(
                             hex::encode(&filter.content)
                         );
                     }
-                    store_filter(db, &hash, h, filter);
+                    store_filter(&db, &hash, h, filter);
                 }
             })
         .await;

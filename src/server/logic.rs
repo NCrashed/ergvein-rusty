@@ -49,13 +49,16 @@ pub async fn indexer_logic(
             let filters_fut = serve_filters(addr.clone(), db.clone(), &mut in_reciver, &out_sender);
             tokio::pin!(filters_fut);
 
+            let announce_fut = announce_filters(db.clone(), &out_sender);
+            tokio::pin!(announce_fut);
+
             let mut close = false;
             while !close {
                 tokio::select! {
                     _ = &mut timeout => {
                         eprintln!("Connection closed by mandatory timeout {}", addr);
                         close = true;
-                    }
+                    },
                     res = &mut filters_fut => match res {
                         Err(e) => {
                             eprintln!("Failed to serve filters to client {}, reason: {:?}", addr, e);
@@ -65,7 +68,17 @@ pub async fn indexer_logic(
                             eprintln!("Impossible, fitlers serve ended to client {}", addr);
                             close = true;
                         }
-                    }
+                    },
+                    res = &mut announce_fut => match res {
+                        Err(e) => {
+                            eprintln!("Failed to announce filters to client {}, reason: {:?}", addr, e);
+                            close = true;
+                        }
+                        Ok(_) => {
+                            eprintln!("Impossible, fitlers announce ended to client {}", addr);
+                            close = true;
+                        }
+                    },
                 }
             }
 
@@ -155,7 +168,7 @@ fn build_version_message(db: Arc<DB>) -> VersionMessage {
                     minor: 0,
                     patch: 0,
                 },
-                scan_height: get_filters_height(db.clone()) as u64,
+                scan_height: get_filters_height(&db) as u64,
                 height: get_chain_height(&db.clone()) as u64,
             }
         ],
@@ -184,7 +197,7 @@ async fn serve_filters(
                         })).unwrap();
                         Err(IndexerError::NotSupportedCurrency(req.currency))?
                     }
-                    let h = get_filters_height(db.clone());
+                    let h = get_filters_height(&db);
                     if req.start > h as u64 {
                         let resp = Message::Filters(FiltersResp {
                             currency: req.currency,
@@ -193,7 +206,7 @@ async fn serve_filters(
                         msg_sender.send(resp).unwrap();
                     } else {
                         let amount = req.amount.min(MAX_FILTERS_REQ);
-                        let filters = read_filters(db.clone(), req.start as u32, amount)
+                        let filters = read_filters(&db, req.start as u32, amount)
                         .iter()
                         .map(|(h, f)| Filter {
                             block_id: h.to_vec(),
@@ -210,5 +223,26 @@ async fn serve_filters(
                 _ => (),
             }
         }
+    }
+}
+
+async fn announce_filters(
+    db: Arc<DB>,
+    msg_sender: &mpsc::UnboundedSender<Message>,
+) -> Result<(), IndexerError> {
+    loop {
+        let h = filters_height_changes(&db, Duration::from_secs(3)).await;
+        let filters = read_filters(&db, h, 1)
+        .iter()
+        .map(|(h, f)| Filter {
+            block_id: h.to_vec(),
+            filter: f.content.clone()
+        })
+        .collect();
+        let resp = Message::Filters(FiltersResp {
+            currency: Currency::Btc,
+            filters: filters,
+        });
+        msg_sender.send(resp).unwrap();
     }
 }
