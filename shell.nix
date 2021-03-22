@@ -1,6 +1,6 @@
 with import ./nix/pkgs.nix {};
-
-stdenv.mkDerivation rec {
+let merged-openssl = symlinkJoin { name = "merged-openssl"; paths = [ openssl.out openssl.dev ]; };
+in stdenv.mkDerivation rec {
   name = "rust-env";
   env = buildEnv { name = name; paths = buildInputs; };
 
@@ -9,8 +9,10 @@ stdenv.mkDerivation rec {
     clang
     llvm
     llvmPackages.libclang
+    openssl
   ];
   shellHook = ''
   export LIBCLANG_PATH="${llvmPackages.libclang}/lib"
+  export OPENSSL_DIR="${merged-openssl}"
   '';
 }
