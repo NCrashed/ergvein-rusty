@@ -52,6 +52,6 @@ pub async fn fees_requester(cache: Arc<Mutex<FeesCache>>) {
                 cache.btc = fee;
             }
         }
-        tokio::time::sleep(Duration::from_secs(60)).await;
+        tokio::time::sleep(Duration::from_secs(5*60)).await;
     }
 }

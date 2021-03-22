@@ -135,8 +135,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let cache = Arc::new(new_cache::<FilterCoin>());
     let fee_cache = Arc::new(Mutex::new(FeesCache::default()));
 
-    tokio::spawn(async move {
-        fees_requester(fee_cache).await;
+    tokio::spawn({
+        let fee_cache = fee_cache.clone();
+        async move {
+            fees_requester(fee_cache).await;
+        }
     });
 
     let listen_addr = format!(
@@ -146,8 +149,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     );
     tokio::spawn({
         let db = db.clone();
+        let fee_cache = fee_cache.clone();
         async move {
-            match indexer_server(listen_addr, db).await {
+            match indexer_server(listen_addr, db, fee_cache).await {
                 Err(err) => {
                     eprintln!("Failed to listen TCP server: {}", err);
                 }

@@ -1,18 +1,19 @@
 use ergvein_protocol::message::*;
+use futures::{future, Sink, SinkExt, Stream, StreamExt};
 use futures::future::{AbortHandle, Abortable, Aborted};
 use futures::pin_mut;
-use futures::{future, Sink, SinkExt, Stream, StreamExt};
 use rocksdb::DB;
 use std::error::Error;
 use std::fmt::Display;
-use std::sync::Arc;
-use tokio::net::{TcpListener, TcpStream, ToSocketAddrs};
+use std::sync::{Arc, Mutex};
+use super::fee::{FeesCache};
 use tokio_util::codec::{FramedRead, FramedWrite};
+use tokio::net::{TcpListener, TcpStream, ToSocketAddrs};
 
 use super::codec::*;
 use super::logic::*;
 
-pub async fn indexer_server<A>(addr: A, db: Arc<DB>) -> Result<(), std::io::Error>
+pub async fn indexer_server<A>(addr: A, db: Arc<DB>, fees: Arc<Mutex<FeesCache>>) -> Result<(), std::io::Error>
 where
     A: ToSocketAddrs + Display,
 {
@@ -24,9 +25,10 @@ where
 
         tokio::spawn({
             let db = db.clone();
+            let fees = fees.clone();
             let addr = addr.to_string();
             async move {
-                let (msg_future, msg_stream, msg_sink) = indexer_logic(addr, db.clone()).await;
+                let (msg_future, msg_stream, msg_sink) = indexer_logic(addr, db.clone(), fees.clone()).await;
                 pin_mut!(msg_sink);
 
                 let (abort_logic, reg_logic_abort) = AbortHandle::new_pair();

@@ -1,11 +1,12 @@
 use crate::filter::*;
+use super::fee::{FeesCache};
 use bitcoin_utxo::storage::chain::get_chain_height;
 use ergvein_protocol::message::*;
 use futures::sink;
 use futures::{Future, Sink, Stream};
 use rand::{thread_rng, Rng};
 use rocksdb::DB;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::mpsc;
 use tokio::time::Duration;
@@ -30,6 +31,7 @@ pub enum IndexerError {
 pub async fn indexer_logic(
     addr: String,
     db: Arc<DB>,
+    fees: Arc<Mutex<FeesCache>>,
 ) -> (
     impl Future<Output = Result<(), IndexerError>>,
     impl Stream<Item = Message> + Unpin,
@@ -45,7 +47,7 @@ pub async fn indexer_logic(
             let timeout = tokio::time::sleep(Duration::from_secs(CONNECTION_DROP_TIMEOUT));
             tokio::pin!(timeout);
 
-            let filters_fut = serve_filters(db.clone(), &mut in_reciver, &out_sender);
+            let filters_fut = serve_filters(db.clone(), fees, &mut in_reciver, &out_sender);
             tokio::pin!(filters_fut);
 
             let announce_fut = announce_filters(db.clone(), &out_sender);
@@ -183,6 +185,7 @@ fn is_supported_currency(currency: &Currency) -> bool {
 
 async fn serve_filters(
     db: Arc<DB>,
+    fees: Arc<Mutex<FeesCache>>,
     msg_reciever: &mut mpsc::UnboundedReceiver<Message>,
     msg_sender: &mpsc::UnboundedSender<Message>,
 ) -> Result<(), IndexerError> {
@@ -226,6 +229,18 @@ async fn serve_filters(
                 Message::Ping(nonce) => {
                     msg_sender.send(Message::Pong(*nonce)).unwrap();
                 }
+                Message::GetFee(curs) => {
+                    let mut resp = vec![];
+                    for cur in curs {
+                        if is_supported_currency(cur) {
+                            let fees = fees.lock().unwrap();
+                            if let Some(f) = make_fee_resp(&fees, cur) {
+                                resp.push(f);
+                            }
+                        }
+                    }
+                    msg_sender.send(Message::Fee(resp)).unwrap();
+                }
                 _ => (),
             }
         }
@@ -250,5 +265,26 @@ async fn announce_filters(
             filters: filters,
         });
         msg_sender.send(resp).unwrap();
+    }
+}
+
+fn make_fee_resp(
+    fees: &FeesCache,
+    currency: &Currency,
+) -> Option<FeeResp>
+{
+    match currency {
+        Currency::Btc => {
+            let f = &fees.btc;
+            Some(FeeResp::FeeBtc((Currency::Btc, FeeBtc {
+                fast_conserv: f.fastest_fee as u64,
+                fast_econom: f.fastest_fee as u64,
+                moderate_conserv: f.half_hour_fee as u64,
+                moderate_econom: f.half_hour_fee as u64,
+                cheap_conserv: f.hour_fee as u64,
+                cheap_econom: f.hour_fee as u64,
+            })))
+        }
+        _ => None
     }
 }
