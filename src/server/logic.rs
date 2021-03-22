@@ -136,6 +136,10 @@ async fn handshake(
                         }
                         println!("Handshaked with client {} and version {:?}", addr, vmsg.version);
                         got_version = true;
+                        msg_sender.send(Message::VersionAck).map_err(|e| {
+                            println!("Error when sending verack: {:?}", e);
+                            IndexerError::HandshakeSendError
+                        })?;
                     }
                     Message::VersionAck => {
                         println!("Received verack for client {}", addr);
