@@ -6,14 +6,15 @@ use rocksdb::DB;
 use std::error::Error;
 use std::fmt::Display;
 use std::sync::{Arc, Mutex};
-use super::fee::{FeesCache};
+use super::fee::FeesCache;
+use super::rates::RatesCache;
 use tokio_util::codec::{FramedRead, FramedWrite};
 use tokio::net::{TcpListener, TcpStream, ToSocketAddrs};
 
 use super::codec::*;
 use super::logic::*;
 
-pub async fn indexer_server<A>(addr: A, db: Arc<DB>, fees: Arc<Mutex<FeesCache>>) -> Result<(), std::io::Error>
+pub async fn indexer_server<A>(addr: A, db: Arc<DB>, fees: Arc<Mutex<FeesCache>>, rates: Arc<RatesCache>) -> Result<(), std::io::Error>
 where
     A: ToSocketAddrs + Display,
 {
@@ -26,9 +27,10 @@ where
         tokio::spawn({
             let db = db.clone();
             let fees = fees.clone();
+            let rates = rates.clone();
             let addr = addr.to_string();
             async move {
-                let (msg_future, msg_stream, msg_sink) = indexer_logic(addr, db.clone(), fees.clone()).await;
+                let (msg_future, msg_stream, msg_sink) = indexer_logic(addr, db.clone(), fees, rates).await;
                 pin_mut!(msg_sink);
 
                 let (abort_logic, reg_logic_abort) = AbortHandle::new_pair();

@@ -1,5 +1,6 @@
 use crate::filter::*;
-use super::fee::{FeesCache};
+use super::fee::FeesCache;
+use super::rates::RatesCache;
 use bitcoin_utxo::storage::chain::get_chain_height;
 use ergvein_protocol::message::*;
 use futures::sink;
@@ -32,6 +33,7 @@ pub async fn indexer_logic(
     addr: String,
     db: Arc<DB>,
     fees: Arc<Mutex<FeesCache>>,
+    rates: Arc<RatesCache>,
 ) -> (
     impl Future<Output = Result<(), IndexerError>>,
     impl Stream<Item = Message> + Unpin,
@@ -47,7 +49,7 @@ pub async fn indexer_logic(
             let timeout = tokio::time::sleep(Duration::from_secs(CONNECTION_DROP_TIMEOUT));
             tokio::pin!(timeout);
 
-            let filters_fut = serve_filters(db.clone(), fees, &mut in_reciver, &out_sender);
+            let filters_fut = serve_filters(db.clone(), fees, rates, &mut in_reciver, &out_sender);
             tokio::pin!(filters_fut);
 
             let announce_fut = announce_filters(db.clone(), &out_sender);
@@ -186,6 +188,7 @@ fn is_supported_currency(currency: &Currency) -> bool {
 async fn serve_filters(
     db: Arc<DB>,
     fees: Arc<Mutex<FeesCache>>,
+    rates: Arc<RatesCache>,
     msg_reciever: &mut mpsc::UnboundedReceiver<Message>,
     msg_sender: &mpsc::UnboundedSender<Message>,
 ) -> Result<(), IndexerError> {
@@ -240,6 +243,29 @@ async fn serve_filters(
                         }
                     }
                     msg_sender.send(Message::Fee(resp)).unwrap();
+                }
+                Message::GetRates(reqs) => {
+                    let mut resp = vec![];
+                    for req in reqs {
+                        if is_supported_currency(&req.currency) {
+                            if let Some(fiats) = rates.get(&req.currency) {
+                                let mut rate_resps = vec![];
+                                for fiat in &req.fiats {
+                                    if let Some(rate) = fiats.get(&fiat) {
+                                        rate_resps.push(FiatRate {
+                                            fiat: *fiat,
+                                            rate: *rate.value(),
+                                        });
+                                    }
+                                }
+                                resp.push(RateResp {
+                                    currency: req.currency,
+                                    rates: rate_resps,
+                                })
+                            }
+                        }
+                    }
+                    msg_sender.send(Message::Rates(resp)).unwrap();
                 }
                 _ => (),
             }

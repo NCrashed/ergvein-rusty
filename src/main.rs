@@ -19,6 +19,7 @@ use crate::filter::*;
 use crate::server::connection::indexer_server;
 use crate::utxo::FilterCoin;
 use crate::server::fee::{FeesCache, fees_requester};
+use crate::server::rates::{rates_requester, new_rates_cache};
 
 use futures::pin_mut;
 use futures::stream;
@@ -134,11 +135,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
     println!("Creating cache");
     let cache = Arc::new(new_cache::<FilterCoin>());
     let fee_cache = Arc::new(Mutex::new(FeesCache::default()));
+    let rates_cache = Arc::new(new_rates_cache());
 
     tokio::spawn({
         let fee_cache = fee_cache.clone();
         async move {
             fees_requester(fee_cache).await;
+        }
+    });
+    tokio::spawn({
+        let rates_cache = rates_cache.clone();
+        async move {
+            rates_requester(rates_cache).await;
         }
     });
 
@@ -150,8 +158,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     tokio::spawn({
         let db = db.clone();
         let fee_cache = fee_cache.clone();
+        let rates_cache = rates_cache.clone();
         async move {
-            match indexer_server(listen_addr, db, fee_cache).await {
+            match indexer_server(listen_addr, db, fee_cache, rates_cache).await {
                 Err(err) => {
                     eprintln!("Failed to listen TCP server: {}", err);
                 }
