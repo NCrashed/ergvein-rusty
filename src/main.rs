@@ -1,21 +1,21 @@
 // The example calculates BIP158 filters for each block
-extern crate bitcoin_utxo;
 extern crate bitcoin;
+extern crate bitcoin_utxo;
 extern crate byteorder;
 extern crate bytes;
 extern crate clap;
 extern crate ergvein_filters;
+extern crate tokio;
 extern crate tokio_stream;
 extern crate tokio_util;
-extern crate tokio;
 
 pub mod filter;
-pub mod utxo;
 pub mod server;
+pub mod utxo;
 
 use crate::filter::*;
-use crate::utxo::FilterCoin;
 use crate::server::connection::indexer_server;
+use crate::utxo::FilterCoin;
 
 use futures::pin_mut;
 use futures::stream;
@@ -35,7 +35,7 @@ use bitcoin_utxo::storage::init_storage;
 use bitcoin_utxo::sync::headers::sync_headers;
 use bitcoin_utxo::sync::utxo::DEF_BLOCK_BATCH;
 
-use clap::{crate_version, App, Arg, value_t};
+use clap::{crate_version, value_t, App, Arg};
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn Error>> {
@@ -46,59 +46,75 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let matches = App::new("ergvein-rusty")
         .about("P2P node to support ergvein mobile wallet")
         .version(crate_version!())
-        .arg(Arg::with_name("host")
-            .short("n")
-            .long("host")
-            .value_name("HOST")
-            .help("Listen network interface")
-            .default_value("127.0.0.1")
-            .takes_value(true))
-        .arg(Arg::with_name("port")
-            .short("p")
-            .long("port")
-            .value_name("PORT")
-            .help("Listen port")
-            .default_value("8667")
-            .takes_value(true))
-        .arg(Arg::with_name("bitcoin")
-            .short("b")
-            .long("bitcoin")
-            .value_name("BITCOIN_NODE")
-            .help("Host and port for bitcoin node to use")
-            .default_value("127.0.0.1:8333")
-            .multiple(true)
-            .takes_value(true))
-        .arg(Arg::with_name("data")
-            .short("d")
-            .long("data")
-            .value_name("DATABASE_PATH")
-            .help("Directory where to store application state")
-            .default_value("./ergvein_rusty_db")
-            .takes_value(true))
-        .arg(Arg::with_name("fork-depth")
-            .long("fork-depth")
-            .value_name("BLOCKS_AMOUNT")
-            .help("Maximum reorganizatrion depth in blockchain")
-            .default_value(&fork_depth_def)
-            .takes_value(true))
-        .arg(Arg::with_name("max-cache")
-            .long("max-cache")
-            .value_name("COINS_AMOUNT")
-            .help("Maximum size of cache in coins amount, limits memory for cache")
-            .default_value(&cache_size_def)
-            .takes_value(true))
-        .arg(Arg::with_name("flush-period")
-            .long("flush-period")
-            .value_name("BLOCKS_AMOUNT")
-            .help("Flush cache to disk every given amount of blocks")
-            .default_value(&flush_period_def)
-            .takes_value(true))
-        .arg(Arg::with_name("block-batch")
-            .long("block-batch")
-            .value_name("BLOCKS_AMOUNT")
-            .help("Amount of blocks to process in parallel while syncing")
-            .default_value(&block_batch_def)
-            .takes_value(true))
+        .arg(
+            Arg::with_name("host")
+                .short("n")
+                .long("host")
+                .value_name("HOST")
+                .help("Listen network interface")
+                .default_value("127.0.0.1")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("port")
+                .short("p")
+                .long("port")
+                .value_name("PORT")
+                .help("Listen port")
+                .default_value("8667")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("bitcoin")
+                .short("b")
+                .long("bitcoin")
+                .value_name("BITCOIN_NODE")
+                .help("Host and port for bitcoin node to use")
+                .default_value("127.0.0.1:8333")
+                .multiple(true)
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("data")
+                .short("d")
+                .long("data")
+                .value_name("DATABASE_PATH")
+                .help("Directory where to store application state")
+                .default_value("./ergvein_rusty_db")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("fork-depth")
+                .long("fork-depth")
+                .value_name("BLOCKS_AMOUNT")
+                .help("Maximum reorganizatrion depth in blockchain")
+                .default_value(&fork_depth_def)
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("max-cache")
+                .long("max-cache")
+                .value_name("COINS_AMOUNT")
+                .help("Maximum size of cache in coins amount, limits memory for cache")
+                .default_value(&cache_size_def)
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("flush-period")
+                .long("flush-period")
+                .value_name("BLOCKS_AMOUNT")
+                .help("Flush cache to disk every given amount of blocks")
+                .default_value(&flush_period_def)
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("block-batch")
+                .long("block-batch")
+                .value_name("BLOCKS_AMOUNT")
+                .help("Amount of blocks to process in parallel while syncing")
+                .default_value(&block_batch_def)
+                .takes_value(true),
+        )
         .get_matches();
 
     let str_address = matches.value_of("bitcoin").unwrap();
@@ -114,7 +130,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
     println!("Creating cache");
     let cache = Arc::new(new_cache::<FilterCoin>());
 
-    let listen_addr = format!("{}:{}", matches.value_of("host").unwrap(), value_t!(matches, "port", u32).unwrap());
+    let listen_addr = format!(
+        "{}:{}",
+        matches.value_of("host").unwrap(),
+        value_t!(matches, "port", u32).unwrap()
+    );
     tokio::spawn({
         let db = db.clone();
         async move {
@@ -131,12 +151,15 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let (headers_stream, headers_sink) = sync_headers(db.clone()).await;
         pin_mut!(headers_sink);
 
-        let (utxo_sink, utxo_stream, abort_handle) = sync_filters(db.clone(), cache.clone(),
+        let (utxo_sink, utxo_stream, abort_handle) = sync_filters(
+            db.clone(),
+            cache.clone(),
             value_t!(matches, "fork-depth", u32).unwrap(),
             value_t!(matches, "max-cache", usize).unwrap(),
             value_t!(matches, "flush-period", u32).unwrap(),
             value_t!(matches, "block-batch", usize).unwrap(),
-            ).await;
+        )
+        .await;
         pin_mut!(utxo_sink);
 
         let msg_stream = stream::select(headers_stream, utxo_stream);

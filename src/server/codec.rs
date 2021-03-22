@@ -1,8 +1,8 @@
 use tokio_util::codec::Decoder;
 use tokio_util::codec::Encoder;
 
-use ergvein_protocol::message::*;
 use bytes::{BufMut, BytesMut};
+use ergvein_protocol::message::*;
 use std::io;
 
 #[derive(Copy, Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
@@ -21,9 +21,7 @@ impl Decoder for MessageCodec {
     fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<Message>, Error> {
         if !buf.is_empty() {
             match deserialize_partial::<Message>(buf) {
-                Err(Error::Io(ref err)) if err.kind() == io::ErrorKind::UnexpectedEof => {
-                    Ok(None)
-                }
+                Err(Error::Io(ref err)) if err.kind() == io::ErrorKind::UnexpectedEof => Ok(None),
                 Err(err) => return Err(err),
                 Ok((message, index)) => {
                     let _ = buf.split_to(index);

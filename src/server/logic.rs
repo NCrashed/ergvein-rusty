@@ -1,18 +1,18 @@
-use bitcoin_utxo::storage::chain::get_chain_height;
 use crate::filter::*;
+use bitcoin_utxo::storage::chain::get_chain_height;
 use ergvein_protocol::message::*;
-use futures::{Future, Stream, Sink};
 use futures::sink;
+use futures::{Future, Sink, Stream};
 use rand::{thread_rng, Rng};
 use rocksdb::DB;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tokio_stream::wrappers::UnboundedReceiverStream;
 use tokio::sync::mpsc;
 use tokio::time::Duration;
+use tokio_stream::wrappers::UnboundedReceiverStream;
 
 /// Amount of seconds connection is open after handshake
-pub const CONNECTION_DROP_TIMEOUT: u64 = 60*20;
+pub const CONNECTION_DROP_TIMEOUT: u64 = 60 * 20;
 /// Limit to amount of filters that can be requested via the server in one request
 pub const MAX_FILTERS_REQ: u32 = 2000;
 
@@ -34,8 +34,7 @@ pub async fn indexer_logic(
     impl Future<Output = Result<(), IndexerError>>,
     impl Stream<Item = Message> + Unpin,
     impl Sink<Message, Error = ergvein_protocol::message::Error>,
-)
-{
+) {
     let (in_sender, mut in_reciver) = mpsc::unbounded_channel::<Message>();
     let (out_sender, out_reciver) = mpsc::unbounded_channel::<Message>();
     let logic_future = {
@@ -100,7 +99,12 @@ async fn handshake(
     msg_sender: &mpsc::UnboundedSender<Message>,
 ) -> Result<(), IndexerError> {
     let ver_msg = build_version_message(db);
-    msg_sender.send(Message::Version(ver_msg.clone())).map_err(|e| { println!("Error when sending handshake: {:?}", e); IndexerError::HandshakeSendError})?;
+    msg_sender
+        .send(Message::Version(ver_msg.clone()))
+        .map_err(|e| {
+            println!("Error when sending handshake: {:?}", e);
+            IndexerError::HandshakeSendError
+        })?;
     let timeout = tokio::time::sleep(Duration::from_secs(20));
     tokio::pin!(timeout);
     let mut got_version = false;
@@ -160,18 +164,16 @@ fn build_version_message(db: Arc<DB>) -> VersionMessage {
         version: Version::current(),
         time: timestamp,
         nonce: nonce,
-        scan_blocks: vec![
-            ScanBlock {
-                currency: Currency::Btc,
-                version: Version {
-                    major: 1,
-                    minor: 0,
-                    patch: 0,
-                },
-                scan_height: get_filters_height(&db) as u64,
-                height: get_chain_height(&db.clone()) as u64,
-            }
-        ],
+        scan_blocks: vec![ScanBlock {
+            currency: Currency::Btc,
+            version: Version {
+                major: 1,
+                minor: 0,
+                patch: 0,
+            },
+            scan_height: get_filters_height(&db) as u64,
+            height: get_chain_height(&db.clone()) as u64,
+        }],
     }
 }
 
@@ -189,11 +191,13 @@ async fn serve_filters(
             match &msg {
                 Message::GetFilters(req) => {
                     if !is_supported_currency(&req.currency) {
-                        msg_sender.send(Message::Reject(RejectMessage{
-                            id: msg.id(),
-                            data: RejectData::InternalError,
-                            message: format!("Not supported currency {:?}", req.currency),
-                        })).unwrap();
+                        msg_sender
+                            .send(Message::Reject(RejectMessage {
+                                id: msg.id(),
+                                data: RejectData::InternalError,
+                                message: format!("Not supported currency {:?}", req.currency),
+                            }))
+                            .unwrap();
                         Err(IndexerError::NotSupportedCurrency(req.currency))?
                     }
                     let h = get_filters_height(&db);
@@ -206,12 +210,12 @@ async fn serve_filters(
                     } else {
                         let amount = req.amount.min(MAX_FILTERS_REQ);
                         let filters = read_filters(&db, req.start as u32, amount)
-                        .iter()
-                        .map(|(h, f)| Filter {
-                            block_id: h.to_vec(),
-                            filter: f.content.clone()
-                        })
-                        .collect();
+                            .iter()
+                            .map(|(h, f)| Filter {
+                                block_id: h.to_vec(),
+                                filter: f.content.clone(),
+                            })
+                            .collect();
                         let resp = Message::Filters(FiltersResp {
                             currency: req.currency,
                             filters: filters,
@@ -232,12 +236,12 @@ async fn announce_filters(
     loop {
         let h = filters_height_changes(&db, Duration::from_secs(3)).await;
         let filters = read_filters(&db, h, 1)
-        .iter()
-        .map(|(h, f)| Filter {
-            block_id: h.to_vec(),
-            filter: f.content.clone()
-        })
-        .collect();
+            .iter()
+            .map(|(h, f)| Filter {
+                block_id: h.to_vec(),
+                filter: f.content.clone(),
+            })
+            .collect();
         let resp = Message::Filters(FiltersResp {
             currency: Currency::Btc,
             filters: filters,

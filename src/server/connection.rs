@@ -1,20 +1,20 @@
 use ergvein_protocol::message::*;
-use futures::{future, Sink, SinkExt, Stream, StreamExt};
 use futures::future::{AbortHandle, Abortable, Aborted};
 use futures::pin_mut;
+use futures::{future, Sink, SinkExt, Stream, StreamExt};
+use rocksdb::DB;
 use std::error::Error;
 use std::fmt::Display;
-use tokio_util::codec::{FramedRead, FramedWrite};
-use tokio::net::{TcpListener, TcpStream, ToSocketAddrs};
-use rocksdb::DB;
 use std::sync::Arc;
+use tokio::net::{TcpListener, TcpStream, ToSocketAddrs};
+use tokio_util::codec::{FramedRead, FramedWrite};
 
 use super::codec::*;
 use super::logic::*;
 
 pub async fn indexer_server<A>(addr: A, db: Arc<DB>) -> Result<(), std::io::Error>
-    where
-        A:ToSocketAddrs+Display,
+where
+    A: ToSocketAddrs + Display,
 {
     let listener = TcpListener::bind(&addr).await?;
     println!("Listening on: {}", addr);
@@ -40,16 +40,17 @@ pub async fn indexer_server<A>(addr: A, db: Arc<DB>) -> Result<(), std::io::Erro
                     }
                 });
 
-                Abortable::new(connect(
-                    &mut socket,
-                    msg_stream,
-                    msg_sink,
-                ), reg_conn_abort).await.unwrap_or_else(|_| {
-                    Ok(())
-                }).unwrap_or_else(|err| {
-                    println!("Connection to {} is closed with {}", socket.peer_addr().unwrap(), err);
-                    abort_logic.abort();
-                });
+                Abortable::new(connect(&mut socket, msg_stream, msg_sink), reg_conn_abort)
+                    .await
+                    .unwrap_or_else(|_| Ok(()))
+                    .unwrap_or_else(|err| {
+                        println!(
+                            "Connection to {} is closed with {}",
+                            socket.peer_addr().unwrap(),
+                            err
+                        );
+                        abort_logic.abort();
+                    });
                 println!("Connection to {} is closed", socket.peer_addr().unwrap());
             }
         });
