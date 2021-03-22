@@ -223,6 +223,9 @@ async fn serve_filters(
                         msg_sender.send(resp).unwrap();
                     }
                 }
+                Message::Ping(nonce) => {
+                    msg_sender.send(Message::Pong(*nonce)).unwrap();
+                }
                 _ => (),
             }
         }
