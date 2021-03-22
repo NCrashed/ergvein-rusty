@@ -38,10 +38,13 @@ pub async fn indexer_logic(
     let logic_future = {
         let db = db.clone();
         async move {
-            handshake(addr.clone(), db, &mut in_reciver, &out_sender).await?;
+            handshake(addr.clone(), db.clone(), &mut in_reciver, &out_sender).await?;
 
             let timeout = tokio::time::sleep(Duration::from_secs(CONNECTION_DROP_TIMEOUT));
             tokio::pin!(timeout);
+
+            let filters_fut = serve_filters(addr.clone(), db.clone(), &mut in_reciver, &out_sender);
+            tokio::pin!(filters_fut);
 
             let mut close = false;
             while !close {
@@ -49,6 +52,16 @@ pub async fn indexer_logic(
                     _ = &mut timeout => {
                         eprintln!("Connection closed by mandatory timeout {}", addr);
                         close = true;
+                    }
+                    res = &mut filters_fut => match res {
+                        Err(e) => {
+                            eprintln!("Failed to serve filters to client {}, reason: {:?}", addr, e);
+                            close = true;
+                        }
+                        Ok(_) => {
+                            eprintln!("Impossible, fitlers serve ended to client {}", addr);
+                            close = true;
+                        }
                     }
                 }
             }
@@ -144,4 +157,13 @@ fn build_version_message(db: Arc<DB>) -> VersionMessage {
             }
         ],
     }
+}
+
+async fn serve_filters(
+    addr: String,
+    db: Arc<DB>,
+    msg_reciever: &mut mpsc::UnboundedReceiver<Message>,
+    msg_sender: &mpsc::UnboundedSender<Message>,
+) -> Result<(), IndexerError> {
+    Ok(())
 }
