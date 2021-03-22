@@ -46,7 +46,7 @@ pub async fn indexer_logic(
             let timeout = tokio::time::sleep(Duration::from_secs(CONNECTION_DROP_TIMEOUT));
             tokio::pin!(timeout);
 
-            let filters_fut = serve_filters(addr.clone(), db.clone(), &mut in_reciver, &out_sender);
+            let filters_fut = serve_filters(db.clone(), &mut in_reciver, &out_sender);
             tokio::pin!(filters_fut);
 
             let announce_fut = announce_filters(db.clone(), &out_sender);
@@ -180,7 +180,6 @@ fn is_supported_currency(currency: &Currency) -> bool {
 }
 
 async fn serve_filters(
-    addr: String,
     db: Arc<DB>,
     msg_reciever: &mut mpsc::UnboundedReceiver<Message>,
     msg_sender: &mpsc::UnboundedSender<Message>,
