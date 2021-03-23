@@ -58,7 +58,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 .long("host")
                 .value_name("HOST")
                 .help("Listen network interface")
-                .default_value("127.0.0.1")
+                .default_value("0.0.0.0")
                 .takes_value(true),
         )
         .arg(
