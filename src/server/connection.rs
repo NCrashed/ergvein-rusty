@@ -28,9 +28,9 @@ where
             let db = db.clone();
             let fees = fees.clone();
             let rates = rates.clone();
-            let addr = addr.to_string();
             async move {
-                let (msg_future, msg_stream, msg_sink) = indexer_logic(addr, db.clone(), fees, rates).await;
+                let peer_addr = format!("{}", socket.peer_addr().unwrap());
+                let (msg_future, msg_stream, msg_sink) = indexer_logic(peer_addr, db.clone(), fees, rates).await;
                 pin_mut!(msg_sink);
 
                 let (abort_logic, reg_logic_abort) = AbortHandle::new_pair();
