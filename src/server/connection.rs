@@ -30,7 +30,7 @@ where
             let rates = rates.clone();
             async move {
                 let peer_addr = format!("{}", socket.peer_addr().unwrap());
-                let (msg_future, msg_stream, msg_sink) = indexer_logic(peer_addr, db.clone(), fees, rates).await;
+                let (msg_future, msg_stream, msg_sink) = indexer_logic(peer_addr.clone(), db.clone(), fees, rates).await;
                 pin_mut!(msg_sink);
 
                 let (abort_logic, reg_logic_abort) = AbortHandle::new_pair();
@@ -55,7 +55,7 @@ where
                         );
                         abort_logic.abort();
                     });
-                println!("Connection to {} is closed", socket.peer_addr().unwrap());
+                println!("Connection to {} is closed", peer_addr);
             }
         });
     }
