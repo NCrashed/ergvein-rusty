@@ -50,7 +50,7 @@ where
                     .unwrap_or_else(|err| {
                         println!(
                             "Connection to {} is closed with {}",
-                            socket.peer_addr().unwrap(),
+                            peer_addr,
                             err
                         );
                         abort_logic.abort();
