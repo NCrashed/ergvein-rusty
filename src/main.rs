@@ -21,9 +21,10 @@ use crate::utxo::FilterCoin;
 use crate::server::fee::{FeesCache, fees_requester};
 use crate::server::rates::{rates_requester, new_rates_cache};
 
+use futures::future::{AbortHandle, Abortable, Aborted};
 use futures::pin_mut;
-use futures::stream;
 use futures::SinkExt;
+use futures::stream;
 
 use std::error::Error;
 use std::net::SocketAddr;
@@ -170,10 +171,18 @@ async fn main() -> Result<(), Box<dyn Error>> {
     });
 
     loop {
-        let (headers_stream, headers_sink) = sync_headers(db.clone()).await;
+        let (headers_future, headers_stream, headers_sink) = sync_headers(db.clone()).await;
         pin_mut!(headers_sink);
+        let (abort_headers_handle, abort_headers_registration) = AbortHandle::new_pair();
+        tokio::spawn(async move {
+            let res = Abortable::new(headers_future, abort_headers_registration).await;
+            match res {
+                Err(Aborted) => eprintln!("Headers task was aborted!"),
+                _ => (),
+            }
+        });
 
-        let (utxo_sink, utxo_stream, abort_handle) = sync_filters(
+        let (utxo_sink, utxo_stream, abort_utxo_handle) = sync_filters(
             db.clone(),
             cache.clone(),
             value_t!(matches, "fork-depth", u32).unwrap(),
@@ -200,7 +209,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         match res {
             Err(err) => {
-                abort_handle.abort();
+                abort_utxo_handle.abort();
+                abort_headers_handle.abort();
                 eprintln!("Connection closed: {:?}. Reconnecting...", err);
                 tokio::time::sleep(Duration::from_secs(3)).await;
             }
