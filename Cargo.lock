@@ -99,7 +99,7 @@ dependencies = [
 [[package]]
 name = "bitcoin-utxo"
 version = "0.1.0"
-source = "git+https://github.com/ncrashed/bitcoin-utxo#7b7e9900cb79f4c3ecb45c259a0d39c10e8e7716"
+source = "git+https://github.com/ncrashed/bitcoin-utxo#ad19cd1a868da13590dbcebd6f07a3edb132e763"
 dependencies = [
  "bitcoin",
  "bitcoin_hashes",
