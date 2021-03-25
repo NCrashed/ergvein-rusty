@@ -171,7 +171,7 @@ fn build_version_message(db: Arc<DB>) -> VersionMessage {
     VersionMessage {
         version: Version::current(),
         time: timestamp,
-        nonce: nonce,
+        nonce,
         scan_blocks: vec![ScanBlock {
             currency: Currency::Btc,
             version: Version {
@@ -230,7 +230,7 @@ async fn serve_filters(
                             .collect();
                         let resp = Message::Filters(FiltersResp {
                             currency: req.currency,
-                            filters: filters,
+                            filters,
                         });
                         msg_sender.send(resp).unwrap();
                     }
@@ -294,7 +294,7 @@ async fn announce_filters(
             .collect();
         let resp = Message::Filters(FiltersResp {
             currency: Currency::Btc,
-            filters: filters,
+            filters,
         });
         msg_sender.send(resp).unwrap();
     }
@@ -308,7 +308,7 @@ fn make_fee_resp(
     match currency {
         Currency::Btc => {
             let f = &fees.btc;
-            Some(FeeResp::FeeBtc((Currency::Btc, FeeBtc {
+            Some(FeeResp::Btc((Currency::Btc, FeeBtc {
                 fast_conserv: f.fastest_fee as u64,
                 fast_econom: f.fastest_fee as u64,
                 moderate_conserv: f.half_hour_fee as u64,

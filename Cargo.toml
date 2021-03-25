@@ -15,7 +15,7 @@ byteorder = "1"
 bytes = "1"
 chrono = "^0.4"
 clap = "2.33.3"
-dashmap = "^4.0"
+dashmap = "4.0"
 ergvein-filters = { git = "https://github.com/ncrashed/ergvein-filters" }
 ergvein-protocol = { git = "https://github.com/ncrashed/ergvein-protocol" }
 futures = "0.3"
@@ -27,3 +27,6 @@ serde = { version = "1.0.124", features = ["derive"] }
 tokio = { version = "1", features = ["full"] }
 tokio-stream = "0.1"
 tokio-util = { version = "0.6", features = [ "codec" ] }
+
+# [profile.release]
+# debug = 1

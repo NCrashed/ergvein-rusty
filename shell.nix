@@ -7,9 +7,11 @@ in stdenv.mkDerivation rec {
   buildInputs = [
     rustup
     clang
-    llvm
-    llvmPackages.libclang
+    llvmPackages_11.libclang
     openssl
+    valgrind
+    kdeApplications.kcachegrind
+    llvm_11
   ];
   shellHook = ''
   export LIBCLANG_PATH="${llvmPackages.libclang}/lib"
