@@ -5,6 +5,7 @@ extern crate byteorder;
 extern crate bytes;
 extern crate clap;
 extern crate ergvein_filters;
+extern crate fs2;
 extern crate reqwest;
 extern crate serde;
 extern crate tokio;
@@ -154,7 +155,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let dbname = matches.value_of("data").unwrap();
     println!("Opening database {:?}", dbname);
-    let db = Arc::new(init_storage(dbname, vec!["filters"])?);
+    let db = Arc::new(init_storage(dbname.clone(), vec!["filters"])?);
     println!("Creating cache");
     let cache = Arc::new(new_cache::<FilterCoin>());
     let fee_cache = Arc::new(Mutex::new(FeesCache::default()));
@@ -197,9 +198,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
         value_t!(matches, "metrics-port", u16).unwrap(),
     );
     tokio::spawn({
+        let db = db.clone();
+        let dbname = dbname.to_string();
         async move {
             println!("Start serving metrics at {}", metrics_addr);
-            serve_metrics(metrics_addr).await;
+            serve_metrics(metrics_addr, db.clone(), dbname).await;
         }
     });
 

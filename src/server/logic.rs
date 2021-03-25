@@ -1,4 +1,5 @@
 use super::fee::FeesCache;
+use super::metrics::*;
 use super::rates::RatesCache;
 use crate::filter::*;
 use bitcoin_utxo::storage::chain::get_chain_height;
@@ -234,13 +235,14 @@ async fn serve_filters(
                         msg_sender.send(resp).unwrap();
                     } else {
                         let amount = req.amount.min(MAX_FILTERS_REQ);
-                        let filters = read_filters(&db, req.start as u32, amount)
+                        let filters: Vec<Filter> = read_filters(&db, req.start as u32, amount)
                             .iter()
                             .map(|(h, f)| Filter {
                                 block_id: h.to_vec(),
                                 filter: f.content.clone(),
                             })
                             .collect();
+                        FILTERS_SERVED_COUNTER.inc_by(filters.len() as u64);
                         let resp = Message::Filters(FiltersResp {
                             currency: req.currency,
                             filters,

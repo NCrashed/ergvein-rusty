@@ -13,6 +13,7 @@ use tokio_util::codec::{FramedRead, FramedWrite};
 
 use super::codec::*;
 use super::logic::*;
+use super::metrics::*;
 
 pub async fn indexer_server<A>(
     addr: A,
@@ -34,6 +35,8 @@ where
             let fees = fees.clone();
             let rates = rates.clone();
             async move {
+                ACTIVE_CONNS_GAUGE.inc();
+
                 let peer_addr = format!("{}", socket.peer_addr().unwrap());
                 let (msg_future, msg_stream, msg_sink) =
                     indexer_logic(peer_addr.clone(), db.clone(), fees, rates).await;
@@ -58,6 +61,7 @@ where
                         abort_logic.abort();
                     });
                 println!("Connection to {} is closed", peer_addr);
+                ACTIVE_CONNS_GAUGE.dec();
             }
         });
     }
