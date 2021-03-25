@@ -105,7 +105,7 @@ dependencies = [
 [[package]]
 name = "bitcoin-utxo"
 version = "0.1.0"
-source = "git+https://github.com/ncrashed/bitcoin-utxo#d3a7db82d27432fb92375e0fe1be1384f257cb23"
+source = "git+https://github.com/ncrashed/bitcoin-utxo?rev=dbf93f64794440b0fa948cd5ad9678b420422bf5#dbf93f64794440b0fa948cd5ad9678b420422bf5"
 dependencies = [
  "bitcoin",
  "bitcoin_hashes",
@@ -274,7 +274,7 @@ dependencies = [
 [[package]]
 name = "consensus-encode"
 version = "0.1.0"
-source = "git+https://github.com/NCrashed/consensus-encode#8c04d05aecc1d0f320fb1ebed0878772c1e83c72"
+source = "git+https://github.com/NCrashed/consensus-encode?rev=8c04d05aecc1d0f320fb1ebed0878772c1e83c72#8c04d05aecc1d0f320fb1ebed0878772c1e83c72"
 
 [[package]]
 name = "const_fn"
@@ -414,7 +414,7 @@ dependencies = [
 [[package]]
 name = "ergvein-filters"
 version = "0.1.0"
-source = "git+https://github.com/ncrashed/ergvein-filters#23500d2848cec0d7925834b1a3578697af729039"
+source = "git+https://github.com/ncrashed/ergvein-filters?rev=23500d2848cec0d7925834b1a3578697af729039#23500d2848cec0d7925834b1a3578697af729039"
 dependencies = [
  "bitcoin",
  "bitcoin_hashes",
@@ -423,7 +423,7 @@ dependencies = [
 [[package]]
 name = "ergvein-protocol"
 version = "0.1.0"
-source = "git+https://github.com/ncrashed/ergvein-protocol#d586cf98ee20f9f890c84d08e1e5e5e3d5bae2b7"
+source = "git+https://github.com/ncrashed/ergvein-protocol?rev=58fcfc7711f23ff0d787002ae075618c6b33b649#58fcfc7711f23ff0d787002ae075618c6b33b649"
 dependencies = [
  "consensus-encode",
  "fix",
