@@ -1,20 +1,25 @@
+use super::fee::FeesCache;
+use super::rates::RatesCache;
 use ergvein_protocol::message::*;
-use futures::{future, Sink, SinkExt, Stream, StreamExt};
 use futures::future::{AbortHandle, Abortable, Aborted};
 use futures::pin_mut;
+use futures::{future, Sink, SinkExt, Stream, StreamExt};
 use rocksdb::DB;
 use std::error::Error;
 use std::fmt::Display;
 use std::sync::{Arc, Mutex};
-use super::fee::FeesCache;
-use super::rates::RatesCache;
-use tokio_util::codec::{FramedRead, FramedWrite};
 use tokio::net::{TcpListener, TcpStream, ToSocketAddrs};
+use tokio_util::codec::{FramedRead, FramedWrite};
 
 use super::codec::*;
 use super::logic::*;
 
-pub async fn indexer_server<A>(addr: A, db: Arc<DB>, fees: Arc<Mutex<FeesCache>>, rates: Arc<RatesCache>) -> Result<(), std::io::Error>
+pub async fn indexer_server<A>(
+    addr: A,
+    db: Arc<DB>,
+    fees: Arc<Mutex<FeesCache>>,
+    rates: Arc<RatesCache>,
+) -> Result<(), std::io::Error>
 where
     A: ToSocketAddrs + Display,
 {
@@ -30,7 +35,8 @@ where
             let rates = rates.clone();
             async move {
                 let peer_addr = format!("{}", socket.peer_addr().unwrap());
-                let (msg_future, msg_stream, msg_sink) = indexer_logic(peer_addr.clone(), db.clone(), fees, rates).await;
+                let (msg_future, msg_stream, msg_sink) =
+                    indexer_logic(peer_addr.clone(), db.clone(), fees, rates).await;
                 pin_mut!(msg_sink);
 
                 let (abort_logic, reg_logic_abort) = AbortHandle::new_pair();
@@ -48,11 +54,7 @@ where
                     .await
                     .unwrap_or_else(|_| Ok(()))
                     .unwrap_or_else(|err| {
-                        println!(
-                            "Connection to {} is closed with {}",
-                            peer_addr,
-                            err
-                        );
+                        println!("Connection to {} is closed with {}", peer_addr, err);
                         abort_logic.abort();
                     });
                 println!("Connection to {} is closed", peer_addr);

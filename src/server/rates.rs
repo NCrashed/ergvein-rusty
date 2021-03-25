@@ -1,9 +1,9 @@
 use dashmap::DashMap;
 use ergvein_protocol::message::*;
-use std::error::Error;
 use serde::Deserialize;
-use std::sync::Arc;
+use std::error::Error;
 use std::num::ParseFloatError;
+use std::sync::Arc;
 use tokio::time::Duration;
 
 pub type RatesCache = DashMap<Currency, DashMap<Fiat, Rate>>;
@@ -13,7 +13,9 @@ pub fn new_rates_cache() -> RatesCache {
 }
 
 #[derive(Deserialize, Debug)]
-struct CoinbaseResp<T>{ data: T }
+struct CoinbaseResp<T> {
+    data: T,
+}
 
 #[derive(Deserialize, Debug)]
 struct CoinbaseRates {
@@ -40,7 +42,7 @@ fn f64_to_centi(a: f64) -> Rate {
 
 async fn request_btc_rates() -> Result<DashMap<Fiat, Rate>, Box<dyn Error>> {
     let request_url = "https://api.coinbase.com/v2/exchange-rates?currency=BTC";
-    let response : CoinbaseResp<CoinbaseRates> = reqwest::get(request_url).await?.json().await?;
+    let response: CoinbaseResp<CoinbaseRates> = reqwest::get(request_url).await?.json().await?;
     let rates = DashMap::new();
     rates.insert(Fiat::Usd, parse_rate(response.data.rates.usd)?);
     rates.insert(Fiat::Eur, parse_rate(response.data.rates.eur)?);

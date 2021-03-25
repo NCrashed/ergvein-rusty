@@ -7,9 +7,14 @@ extern crate clap;
 extern crate ergvein_filters;
 extern crate reqwest;
 extern crate serde;
+extern crate tokio;
 extern crate tokio_stream;
 extern crate tokio_util;
-extern crate tokio;
+#[macro_use]
+extern crate prometheus;
+#[macro_use]
+extern crate lazy_static;
+extern crate warp;
 
 pub mod filter;
 pub mod server;
@@ -17,17 +22,18 @@ pub mod utxo;
 
 use crate::filter::*;
 use crate::server::connection::indexer_server;
+use crate::server::fee::{fees_requester, FeesCache};
+use crate::server::metrics::serve_metrics;
+use crate::server::rates::{new_rates_cache, rates_requester};
 use crate::utxo::FilterCoin;
-use crate::server::fee::{FeesCache, fees_requester};
-use crate::server::rates::{rates_requester, new_rates_cache};
 
 use futures::future::{AbortHandle, Abortable, Aborted};
 use futures::pin_mut;
-use futures::SinkExt;
 use futures::stream;
+use futures::SinkExt;
 
 use std::error::Error;
-use std::net::SocketAddr;
+use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
 use std::sync::Mutex;
 use std::{env, process};
@@ -121,6 +127,22 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 .default_value(&block_batch_def)
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("metrics-host")
+                .long("metrics-host")
+                .value_name("METRICS_HOST")
+                .help("Listen network interface for Prometheus metrics")
+                .default_value("0.0.0.0")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("metrics-port")
+                .long("metrics-port")
+                .value_name("METRICS_PORT")
+                .help("Listen port")
+                .default_value("9667")
+                .takes_value(true),
+        )
         .get_matches();
 
     let str_address = matches.value_of("bitcoin").unwrap();
@@ -167,6 +189,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 }
                 Ok(_) => (),
             }
+        }
+    });
+
+    let metrics_addr = SocketAddr::new(
+        value_t!(matches, "metrics-host", IpAddr).unwrap(),
+        value_t!(matches, "metrics-port", u16).unwrap(),
+    );
+    tokio::spawn({
+        async move {
+            println!("Start serving metrics at {}", metrics_addr);
+            serve_metrics(metrics_addr).await;
         }
     });
 

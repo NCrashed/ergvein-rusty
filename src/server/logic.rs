@@ -1,6 +1,6 @@
-use crate::filter::*;
 use super::fee::FeesCache;
 use super::rates::RatesCache;
+use crate::filter::*;
 use bitcoin_utxo::storage::chain::get_chain_height;
 use ergvein_protocol::message::*;
 use futures::sink;
@@ -49,7 +49,14 @@ pub async fn indexer_logic(
             let timeout = tokio::time::sleep(Duration::from_secs(CONNECTION_DROP_TIMEOUT));
             tokio::pin!(timeout);
 
-            let filters_fut = serve_filters(addr.clone(), db.clone(), fees, rates, &mut in_reciver, &out_sender);
+            let filters_fut = serve_filters(
+                addr.clone(),
+                db.clone(),
+                fees,
+                rates,
+                &mut in_reciver,
+                &out_sender,
+            );
             tokio::pin!(filters_fut);
 
             let announce_fut = announce_filters(db.clone(), &out_sender);
@@ -201,7 +208,13 @@ async fn serve_filters(
         if let Some(msg) = msg_reciever.recv().await {
             match &msg {
                 Message::GetFilters(req) => {
-                    println!("Client {} requested filters for {:?} from {} to {}", addr, req.currency, req.start, req.start+req.amount as u64);
+                    println!(
+                        "Client {} requested filters for {:?} from {} to {}",
+                        addr,
+                        req.currency,
+                        req.start,
+                        req.start + req.amount as u64
+                    );
                     if !is_supported_currency(&req.currency) {
                         msg_sender
                             .send(Message::Reject(RejectMessage {
@@ -300,23 +313,22 @@ async fn announce_filters(
     }
 }
 
-fn make_fee_resp(
-    fees: &FeesCache,
-    currency: &Currency,
-) -> Option<FeeResp>
-{
+fn make_fee_resp(fees: &FeesCache, currency: &Currency) -> Option<FeeResp> {
     match currency {
         Currency::Btc => {
             let f = &fees.btc;
-            Some(FeeResp::Btc((Currency::Btc, FeeBtc {
-                fast_conserv: f.fastest_fee as u64,
-                fast_econom: f.fastest_fee as u64,
-                moderate_conserv: f.half_hour_fee as u64,
-                moderate_econom: f.half_hour_fee as u64,
-                cheap_conserv: f.hour_fee as u64,
-                cheap_econom: f.hour_fee as u64,
-            })))
+            Some(FeeResp::Btc((
+                Currency::Btc,
+                FeeBtc {
+                    fast_conserv: f.fastest_fee as u64,
+                    fast_econom: f.fastest_fee as u64,
+                    moderate_conserv: f.half_hour_fee as u64,
+                    moderate_econom: f.half_hour_fee as u64,
+                    cheap_conserv: f.hour_fee as u64,
+                    cheap_econom: f.hour_fee as u64,
+                },
+            )))
         }
-        _ => None
+        _ => None,
     }
 }

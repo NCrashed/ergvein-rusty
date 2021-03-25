@@ -1,5 +1,5 @@
-use serde::Deserialize;
 use reqwest::Error;
+use serde::Deserialize;
 use std::sync::{Arc, Mutex};
 use tokio::time::Duration;
 
@@ -52,6 +52,6 @@ pub async fn fees_requester(cache: Arc<Mutex<FeesCache>>) {
                 cache.btc = fee;
             }
         }
-        tokio::time::sleep(Duration::from_secs(5*60)).await;
+        tokio::time::sleep(Duration::from_secs(5 * 60)).await;
     }
 }
