@@ -1,4 +1,7 @@
-with import ./nix/pkgs.nix {};
+let
+sources = import ./nix/sources.nix;
+pkgs = import sources.nixpkgs {};
+in with pkgs;
 let merged-openssl = symlinkJoin { name = "merged-openssl"; paths = [ openssl.out openssl.dev ]; };
 in stdenv.mkDerivation rec {
   name = "rust-env";

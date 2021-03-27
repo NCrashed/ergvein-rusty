@@ -441,6 +441,7 @@ dependencies = [
  "bytes",
  "chrono",
  "clap",
+ "consensus-encode",
  "dashmap",
  "ergvein-filters",
  "ergvein-protocol",
