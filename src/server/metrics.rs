@@ -27,6 +27,7 @@ lazy_static! {
 
 pub async fn serve_metrics(addr: SocketAddr, db: Arc<DB>, db_path: String) {
     ACTIVE_CONNS_GAUGE.set(0);
+    FILTERS_SERVED_COUNTER.inc_by(0);
     BTC_HEIGHT_GAUGE.set(get_chain_height(&db) as i64);
     BTC_SCAN_GAUGE.set(get_filters_height(&db) as i64);
     SPACE_GAUGE.set(fs2::available_space(db_path.clone()).unwrap_or(0) as i64);

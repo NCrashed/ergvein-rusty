@@ -73,7 +73,7 @@
         "showThresholdLabels": false,
         "showThresholdMarkers": true
       },
-      "pluginVersion": "7.2.0",
+      "pluginVersion": "7.3.7",
       "targets": [
         {
           "expr": "btc_scanned_height/btc_current_height",
@@ -134,7 +134,7 @@
         },
         "showUnfilled": true
       },
-      "pluginVersion": "7.2.0",
+      "pluginVersion": "7.3.7",
       "targets": [
         {
           "expr": "btc_current_height - btc_scanned_height",
@@ -187,7 +187,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.2.0",
+      "pluginVersion": "7.3.7",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -291,7 +291,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.2.0",
+      "pluginVersion": "7.3.7",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -435,7 +435,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.2.0",
+      "pluginVersion": "7.3.7",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -541,7 +541,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.2.0",
+      "pluginVersion": "7.3.7",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -645,7 +645,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.2.0",
+      "pluginVersion": "7.3.7",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -743,7 +743,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.2.0",
+      "pluginVersion": "7.3.7",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -841,7 +841,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.2.0",
+      "pluginVersion": "7.3.7",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -851,7 +851,7 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "ghc_max_live_bytes",
+          "expr": "process_resident_memory_bytes",
           "instant": false,
           "interval": "",
           "intervalFactor": 1,
@@ -939,7 +939,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.2.0",
+      "pluginVersion": "7.3.7",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
@@ -949,9 +949,10 @@
       "steppedLine": false,
       "targets": [
         {
-          "expr": "rate(ghc_gc_elapsed_seconds_total[1m]) ",
+          "expr": "process_open_fds",
+          "format": "time_series",
           "interval": "",
-          "legendFormat": "GC seconds per min",
+          "legendFormat": "File descriptors opened",
           "refId": "A"
         }
       ],
@@ -959,7 +960,7 @@
       "timeFrom": null,
       "timeRegions": [],
       "timeShift": null,
-      "title": "GC rate",
+      "title": "Open fds",
       "tooltip": {
         "shared": true,
         "sort": 0,
@@ -976,7 +977,8 @@
       "yaxes": [
         {
           "$$hashKey": "object:112",
-          "format": "s",
+          "decimals": 0,
+          "format": "fds",
           "label": null,
           "logBase": 1,
           "max": null,
@@ -1096,7 +1098,7 @@
         "alertThreshold": true
       },
       "percentage": false,
-      "pluginVersion": "7.2.0",
+      "pluginVersion": "7.3.7",
       "pointradius": 2,
       "points": false,
       "renderer": "flot",
