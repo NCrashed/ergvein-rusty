@@ -28,42 +28,49 @@ where
     println!("Listening on: {}", addr);
 
     loop {
-        let (mut socket, _) = listener.accept().await?;
+        let res = listener.accept().await;
 
-        tokio::spawn({
-            let db = db.clone();
-            let fees = fees.clone();
-            let rates = rates.clone();
-            async move {
-                ACTIVE_CONNS_GAUGE.inc();
+        match res {
+            Err(e) => {
+                eprintln!("Failed to accept client: {:?}", e);
+            }
+            Ok((mut socket, _)) => {
+                tokio::spawn({
+                    let db = db.clone();
+                    let fees = fees.clone();
+                    let rates = rates.clone();
+                    async move {
+                        ACTIVE_CONNS_GAUGE.inc();
 
-                let peer_addr = format!("{}", socket.peer_addr().unwrap());
-                let (msg_future, msg_stream, msg_sink) =
-                    indexer_logic(peer_addr.clone(), db.clone(), fees, rates).await;
-                pin_mut!(msg_sink);
+                        let peer_addr = format!("{}", socket.peer_addr().unwrap());
+                        let (msg_future, msg_stream, msg_sink) =
+                            indexer_logic(peer_addr.clone(), db.clone(), fees, rates).await;
+                        pin_mut!(msg_sink);
 
-                let (abort_logic, reg_logic_abort) = AbortHandle::new_pair();
-                let (abort_conn, reg_conn_abort) = AbortHandle::new_pair();
-                tokio::spawn(async move {
-                    let res = Abortable::new(msg_future, reg_logic_abort).await;
-                    match res {
-                        Err(Aborted) => eprintln!("Client logic task was aborted!"),
-                        Ok(Err(_)) => abort_conn.abort(),
-                        _ => (),
+                        let (abort_logic, reg_logic_abort) = AbortHandle::new_pair();
+                        let (abort_conn, reg_conn_abort) = AbortHandle::new_pair();
+                        tokio::spawn(async move {
+                            let res = Abortable::new(msg_future, reg_logic_abort).await;
+                            match res {
+                                Err(Aborted) => eprintln!("Client logic task was aborted!"),
+                                Ok(Err(_)) => abort_conn.abort(),
+                                _ => (),
+                            }
+                        });
+
+                        Abortable::new(connect(&mut socket, msg_stream, msg_sink), reg_conn_abort)
+                            .await
+                            .unwrap_or_else(|_| Ok(()))
+                            .unwrap_or_else(|err| {
+                                println!("Connection to {} is closed with {}", peer_addr, err);
+                                abort_logic.abort();
+                            });
+                        println!("Connection to {} is closed", peer_addr);
+                        ACTIVE_CONNS_GAUGE.dec();
                     }
                 });
-
-                Abortable::new(connect(&mut socket, msg_stream, msg_sink), reg_conn_abort)
-                    .await
-                    .unwrap_or_else(|_| Ok(()))
-                    .unwrap_or_else(|err| {
-                        println!("Connection to {} is closed with {}", peer_addr, err);
-                        abort_logic.abort();
-                    });
-                println!("Connection to {} is closed", peer_addr);
-                ACTIVE_CONNS_GAUGE.dec();
             }
-        });
+        }
     }
 }
 
