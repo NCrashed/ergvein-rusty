@@ -144,6 +144,7 @@ in {
           Restart = "always";
           RestartSec = 30;
           User = "root";
+          LimitNOFILE = 65536;
         };
       wantedBy = ["multi-user.target"];
     };
