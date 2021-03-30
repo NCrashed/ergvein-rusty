@@ -243,6 +243,14 @@ async fn serve_filters(
                             })
                             .collect();
                         FILTERS_SERVED_COUNTER.inc_by(filters.len() as u64);
+                        println!(
+                            "Sent {} {:?} filters to client {} from {} to {}",
+                            filters.len(),
+                            req.currency,
+                            addr,
+                            req.start,
+                            req.start + req.amount as u64
+                        );
                         let resp = Message::Filters(FiltersResp {
                             currency: req.currency,
                             filters,
