@@ -12,3 +12,11 @@ You will need either any public remote node, or local one (prefer for speed of i
 ```
 cargo run --release -- 127.0.0.1:8333
 ```
+
+# How to run with docker (or any compatible container runtime)
+
+We have official docker image [ergvein/ergvein-index-server:rusty](https://hub.docker.com/r/ergvein/ergvein-index-server/tags?page=1&ordering=last_updated&name=rusty) built from the `Dockerfile`.
+
+```
+docker run --volume ergveindata:/data ergvein/ergvein-index-server:rusty --host 0.0.0.0 --bitcoin bitcoin-node-host:8333
+```
