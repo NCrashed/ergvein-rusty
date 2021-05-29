@@ -105,7 +105,6 @@ dependencies = [
 [[package]]
 name = "bitcoin-utxo"
 version = "0.1.0"
-source = "git+https://github.com/hexresearch/bitcoin-utxo?rev=9a338e490b64b8468f69bc4b9e9d820e5f6c2131#9a338e490b64b8468f69bc4b9e9d820e5f6c2131"
 dependencies = [
  "bitcoin",
  "bitcoin_hashes",
