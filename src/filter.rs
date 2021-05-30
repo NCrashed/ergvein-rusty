@@ -8,7 +8,7 @@ use bitcoin_utxo::storage::chain::*;
 use bitcoin_utxo::sync::utxo::*;
 use byteorder::{BigEndian, ByteOrder};
 use ergvein_filters::btc::ErgveinFilter;
-use futures::future::{AbortHandle, Abortable, Aborted};
+use futures::future::{AbortHandle, Abortable, Aborted, AbortRegistration};
 use rocksdb::{WriteBatch, WriteOptions, DB};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -19,7 +19,7 @@ pub async fn generate_filter(
     cache: Arc<UtxoCache<FilterCoin>>,
     h: u32,
     block: Block,
-) -> ErgveinFilter {
+) -> Result<ErgveinFilter, UtxoSyncError> {
     let mut hashmap = HashMap::<OutPoint, Script>::new();
     for tx in &block.txdata {
         if !tx.is_coin_base() {
@@ -31,7 +31,7 @@ pub async fn generate_filter(
                     h,
                     Duration::from_millis(100),
                 )
-                .await;
+                .await?;
                 hashmap.insert(i.previous_output, coin.script);
             }
         }
@@ -40,8 +40,7 @@ pub async fn generate_filter(
         hashmap
             .get(out)
             .map_or(Err(bip158::Error::UtxoMissing(*out)), |s| Ok(s.clone()))
-    })
-    .unwrap()
+    }).map_err(|e| UtxoSyncError::UserWith(Box::new(e)))
 }
 
 fn height_value(h: u32) -> [u8; 4] {
@@ -68,11 +67,10 @@ pub async fn filters_height_changes(db: &DB, dur: Duration) -> u32 {
     curh
 }
 
-pub fn store_filter(db: &DB, hash: &BlockHash, height: u32, filter: ErgveinFilter) {
+pub fn store_filter(db: &DB, hash: &BlockHash, height: u32, filter: ErgveinFilter) -> Result<(), rocksdb::Error> {
     let cf = db.cf_handle("filters").unwrap();
     let curh = db
-        .get_cf(cf, b"height")
-        .unwrap()
+        .get_cf(cf, b"height")?
         .map_or(0, |bs| BigEndian::read_u32(&bs));
     let mut batch = WriteBatch::default();
     batch.put_cf(cf, hash, filter.content);
@@ -83,7 +81,7 @@ pub fn store_filter(db: &DB, hash: &BlockHash, height: u32, filter: ErgveinFilte
     let mut write_options = WriteOptions::default();
     write_options.set_sync(false);
     write_options.disable_wal(true);
-    db.write_opt(batch, &write_options).unwrap();
+    db.write_opt(batch, &write_options)
 }
 
 pub fn read_filters(db: &DB, start: u32, amount: u32) -> Vec<(BlockHash, ErgveinFilter)> {
@@ -111,6 +109,7 @@ pub async fn sync_filters(
     impl futures::Sink<NetworkMessage, Error = encode::Error>,
     impl Unpin + futures::Stream<Item = NetworkMessage>,
     AbortHandle,
+    AbortRegistration,
 ) {
     let db = db.clone();
     let cache = cache.clone();
@@ -127,7 +126,7 @@ pub async fn sync_filters(
             let cache = cache.clone();
             async move {
                 let hash = block.block_hash();
-                let filter = generate_filter(db.clone(), cache, h, block).await;
+                let filter = generate_filter(db.clone(), cache, h, block).await?;
                 if h % 1000 == 0 {
                     println!(
                         "Filter for block {:?}: {:?}",
@@ -135,20 +134,25 @@ pub async fn sync_filters(
                         hex::encode(&filter.content)
                     );
                 }
-                store_filter(&db, &hash, h, filter);
+                store_filter(&db, &hash, h, filter).map_err(|e| UtxoSyncError::UserWith(Box::new(e)))
             }
         },
     )
     .await;
 
     let (abort_handle, abort_registration) = AbortHandle::new_pair();
+    let (restart_handle, restart_registration) = AbortHandle::new_pair();
     tokio::spawn(async move {
         let res = Abortable::new(sync_future, abort_registration).await;
         match res {
             Err(Aborted) => eprintln!("Sync task was aborted!"),
-            _ => (),
+            Ok(Err(e)) => {
+                eprintln!("Sync was failed with error: {}", e);
+                restart_handle.abort();
+            },
+            Ok(Ok(())) => (),
         }
     });
 
-    (utxo_sink, utxo_stream, abort_handle)
+    (utxo_sink, utxo_stream, abort_handle, restart_registration)
 }

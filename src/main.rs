@@ -218,7 +218,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             }
         });
 
-        let (utxo_sink, utxo_stream, abort_utxo_handle) = sync_filters(
+        let (utxo_sink, utxo_stream, abort_utxo_handle, restart_registration) = sync_filters(
             db.clone(),
             cache.clone(),
             value_t!(matches, "fork-depth", u32).unwrap(),
@@ -233,27 +233,35 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let msg_sink = headers_sink.fanout(utxo_sink);
 
         println!("Connecting to node");
-        let res = connect(
+        let res = Abortable::new(connect(
             &address,
             constants::Network::Bitcoin,
             "rust-client".to_string(),
             0,
             msg_stream,
             msg_sink,
-        )
+        ), restart_registration)
         .await;
 
         match res {
-            Err(err) => {
-                abort_utxo_handle.abort();
+            Err(_) => {
                 abort_headers_handle.abort();
-                eprintln!("Connection closed: {:?}. Reconnecting...", err);
+                eprintln!("Connection closed due local error. Reconnecting...");
                 tokio::time::sleep(Duration::from_secs(3)).await;
             }
-            Ok(_) => {
-                println!("Gracefull termination");
-                break;
+            Ok(res) => match res {
+                Err(err) => {
+                    abort_utxo_handle.abort();
+                    abort_headers_handle.abort();
+                    eprintln!("Connection closed: {:?}. Reconnecting...", err);
+                    tokio::time::sleep(Duration::from_secs(3)).await;
+                }
+                Ok(_) => {
+                    println!("Gracefull termination");
+                    break;
+                }
             }
+
         }
     }
 

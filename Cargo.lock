@@ -104,8 +104,8 @@ dependencies = [
 
 [[package]]
 name = "bitcoin-utxo"
-version = "0.1.0"
-source = "git+https://github.com/hexresearch/bitcoin-utxo?rev=e7cdbc61725e8f0fbed1179ddc1dbc76ea8a3ddb#e7cdbc61725e8f0fbed1179ddc1dbc76ea8a3ddb"
+version = "0.2.0"
+source = "git+https://github.com/hexresearch/bitcoin-utxo?rev=de9edf6e6fdae353842181b14337b88483b03461#de9edf6e6fdae353842181b14337b88483b03461"
 dependencies = [
  "bitcoin",
  "bitcoin_hashes",
@@ -117,6 +117,7 @@ dependencies = [
  "futures",
  "rayon",
  "rocksdb",
+ "thiserror",
  "time 0.2.26",
  "tokio",
  "tokio-stream",
@@ -432,7 +433,7 @@ dependencies = [
 
 [[package]]
 name = "ergvein-rusty"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bitcoin",
  "bitcoin-utxo",
