@@ -105,7 +105,6 @@ dependencies = [
 [[package]]
 name = "bitcoin-utxo"
 version = "0.2.0"
-source = "git+https://github.com/hexresearch/bitcoin-utxo?rev=de9edf6e6fdae353842181b14337b88483b03461#de9edf6e6fdae353842181b14337b88483b03461"
 dependencies = [
  "bitcoin",
  "bitcoin_hashes",
@@ -300,6 +299,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ea221b5284a47e40033bf9b66f35f984ec0ea2931eb03505246cd27a963f981b"
 
 [[package]]
+name = "cpufeatures"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "66c99696f6c9dd7f35d486b9d04d7e6e202aa3e8c40d553f2fdf5e7e0c6a71ef"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "cpuid-bool"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -415,7 +423,6 @@ dependencies = [
 [[package]]
 name = "ergvein-filters"
 version = "0.1.0"
-source = "git+https://github.com/hexresearch/ergvein-filters?rev=23500d2848cec0d7925834b1a3578697af729039#23500d2848cec0d7925834b1a3578697af729039"
 dependencies = [
  "bitcoin",
  "bitcoin_hashes",
@@ -450,6 +457,7 @@ dependencies = [
  "futures",
  "hex",
  "lazy_static",
+ "mempool_filters",
  "prometheus",
  "rand 0.8.3",
  "reqwest",
@@ -887,9 +895,9 @@ checksum = "830d08ce1d1d941e6b30645f1a0eb5643013d835ce3779a5fc208261dbe10f55"
 
 [[package]]
 name = "libc"
-version = "0.2.91"
+version = "0.2.97"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8916b1f6ca17130ec6568feccee27c156ad12037880833a3b842a823236502e7"
+checksum = "12b8adadd720df158f4d70dfe7ccc6adb0472d7c55ca83445f6a5ab3e36f8fb6"
 
 [[package]]
 name = "libloading"
@@ -950,6 +958,32 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f83fb6581e8ed1f85fd45c116db8405483899489e38406156c25eb743554361d"
 dependencies = [
  "autocfg 1.0.1",
+]
+
+[[package]]
+name = "mempool_filters"
+version = "0.1.0"
+dependencies = [
+ "bitcoin",
+ "bitcoin-utxo",
+ "bitcoin_hashes",
+ "byte-strings",
+ "byteorder",
+ "bytes",
+ "chrono",
+ "consensus-encode",
+ "dashmap",
+ "ergvein-filters",
+ "futures",
+ "lazy_static",
+ "rayon",
+ "rocksdb",
+ "sha2",
+ "thiserror",
+ "time 0.2.26",
+ "tokio",
+ "tokio-stream",
+ "tokio-util",
 ]
 
 [[package]]
@@ -1769,6 +1803,19 @@ name = "sha1"
 version = "0.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2579985fda508104f7587689507983eadd6a6e84dd35d6d115361f530916fa0d"
+
+[[package]]
+name = "sha2"
+version = "0.9.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b362ae5752fd2137731f9fa25fd4d9058af34666ca1966fb969119cc35719f12"
+dependencies = [
+ "block-buffer",
+ "cfg-if 1.0.0",
+ "cpufeatures",
+ "digest",
+ "opaque-debug",
+]
 
 [[package]]
 name = "shlex"

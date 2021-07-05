@@ -10,7 +10,8 @@ use byteorder::{BigEndian, ByteOrder};
 use ergvein_filters::btc::ErgveinFilter;
 use futures::future::{AbortHandle, Abortable, Aborted, AbortRegistration};
 use rocksdb::{WriteBatch, WriteOptions, DB};
-use std::collections::HashMap;
+
+use tokio::sync::Mutex;use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::time::Duration;
 
@@ -108,12 +109,13 @@ pub async fn sync_filters(
 ) -> (
     impl futures::Sink<NetworkMessage, Error = encode::Error>,
     impl Unpin + futures::Stream<Item = NetworkMessage>,
+    Arc<Mutex<()>>,
     AbortHandle,
     AbortRegistration,
 ) {
     let db = db.clone();
     let cache = cache.clone();
-    let (sync_future, utxo_stream, utxo_sink) = sync_utxo_with(
+    let (sync_future, sync_mutex, utxo_stream, utxo_sink) = sync_utxo_with(
         db.clone(),
         cache.clone(),
         fork_height,
@@ -154,5 +156,5 @@ pub async fn sync_filters(
         }
     });
 
-    (utxo_sink, utxo_stream, abort_handle, restart_registration)
+    (utxo_sink, utxo_stream, sync_mutex, abort_handle, restart_registration)
 }

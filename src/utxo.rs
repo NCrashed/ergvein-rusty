@@ -8,6 +8,10 @@ pub struct FilterCoin {
     pub script: Script,
 }
 
+pub fn coin_script(fc: &FilterCoin) -> Script {
+    fc.script.clone()
+}
+
 impl UtxoState for FilterCoin {
     fn new_utxo(_height: u32, _header: &BlockHeader, tx: &Transaction, vout: u32) -> Self {
         FilterCoin {

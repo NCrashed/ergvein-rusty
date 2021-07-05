@@ -27,12 +27,15 @@ use crate::server::fee::{fees_requester, FeesCache};
 use crate::server::metrics::serve_metrics;
 use crate::server::rates::{new_rates_cache, rates_requester};
 use crate::utxo::FilterCoin;
+use crate::utxo::coin_script;
 
 use futures::future::{AbortHandle, Abortable, Aborted};
 use futures::pin_mut;
 use futures::stream;
 use futures::SinkExt;
-
+use mempool_filters::filtertree::FilterTree;
+use mempool_filters::txtree::TxTree;
+use mempool_filters::worker::mempool_worker;
 use std::error::Error;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
@@ -144,6 +147,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 .default_value("9667")
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("mempool-period")
+                .long("mempool-period")
+                .value_name("MEMPOOL_PERIOD")
+                .help("How often to rebuild mempool filters. Integer seconds")
+                .default_value("60")
+                .takes_value(true),
+        )
         .get_matches();
 
     let str_address = matches.value_of("bitcoin").unwrap();
@@ -160,7 +171,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let cache = Arc::new(new_cache::<FilterCoin>());
     let fee_cache = Arc::new(Mutex::new(FeesCache::default()));
     let rates_cache = Arc::new(new_rates_cache());
-
+    let mempool_period = value_t!(matches, "mempool-period", u64).unwrap_or(60);
     tokio::spawn({
         let fee_cache = fee_cache.clone();
         async move {
@@ -218,7 +229,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             }
         });
 
-        let (utxo_sink, utxo_stream, abort_utxo_handle, restart_registration) = sync_filters(
+        let (utxo_sink, utxo_stream, sync_mutex, abort_utxo_handle, restart_registration) = sync_filters(
             db.clone(),
             cache.clone(),
             value_t!(matches, "fork-depth", u32).unwrap(),
@@ -227,10 +238,27 @@ async fn main() -> Result<(), Box<dyn Error>> {
             value_t!(matches, "block-batch", usize).unwrap(),
         )
         .await;
-        pin_mut!(utxo_sink);
 
-        let msg_stream = stream::select(headers_stream, utxo_stream);
-        let msg_sink = headers_sink.fanout(utxo_sink);
+        let txtree = Arc::new(TxTree::new());
+        let ftree = Arc::new(FilterTree::new());
+        let full_filter = Arc::new(tokio::sync::Mutex::new(None));
+        let mempool_dur = Duration::from_secs(mempool_period);
+        let (tx_future, filt_future, filters_sink, filters_stream) =
+            mempool_worker(txtree, ftree, full_filter, db.clone(), cache.clone(), sync_mutex.clone(), coin_script, mempool_dur).await;
+
+        tokio::spawn(async move {
+            tx_future.await.map_or_else(|e| eprintln!("TxTree task was aborted: {:?}", e), |_| ())
+        });
+
+        tokio::spawn(async move {
+            filt_future.await.map_or_else(|e| eprintln!("FilterTree task was aborted: {:?}", e), |_| ())
+        });
+
+        pin_mut!(utxo_sink);
+        pin_mut!(filters_sink);
+
+        let msg_stream = stream::select(headers_stream, stream::select(utxo_stream, filters_stream));
+        let msg_sink = headers_sink.fanout(utxo_sink.fanout(filters_sink));
 
         println!("Connecting to node");
         let res = Abortable::new(connect(
