@@ -8,11 +8,12 @@ use bitcoin_utxo::storage::chain::*;
 use bitcoin_utxo::sync::utxo::*;
 use byteorder::{BigEndian, ByteOrder};
 use ergvein_filters::btc::ErgveinFilter;
-use futures::future::{AbortHandle, Abortable, Aborted, AbortRegistration};
+use futures::future::{AbortHandle, AbortRegistration, Abortable, Aborted};
 use rocksdb::{WriteBatch, WriteOptions, DB};
 
-use tokio::sync::Mutex;use std::collections::HashMap;
+use std::collections::HashMap;
 use std::sync::Arc;
+use tokio::sync::Mutex;
 use tokio::time::Duration;
 
 pub async fn generate_filter(
@@ -41,7 +42,8 @@ pub async fn generate_filter(
         hashmap
             .get(out)
             .map_or(Err(bip158::Error::UtxoMissing(*out)), |s| Ok(s.clone()))
-    }).map_err(|e| UtxoSyncError::UserWith(Box::new(e)))
+    })
+    .map_err(|e| UtxoSyncError::UserWith(Box::new(e)))
 }
 
 fn height_value(h: u32) -> [u8; 4] {
@@ -68,7 +70,12 @@ pub async fn filters_height_changes(db: &DB, dur: Duration) -> u32 {
     curh
 }
 
-pub fn store_filter(db: &DB, hash: &BlockHash, height: u32, filter: ErgveinFilter) -> Result<(), rocksdb::Error> {
+pub fn store_filter(
+    db: &DB,
+    hash: &BlockHash,
+    height: u32,
+    filter: ErgveinFilter,
+) -> Result<(), rocksdb::Error> {
     let cf = db.cf_handle("filters").unwrap();
     let curh = db
         .get_cf(cf, b"height")?
@@ -136,7 +143,8 @@ pub async fn sync_filters(
                         hex::encode(&filter.content)
                     );
                 }
-                store_filter(&db, &hash, h, filter).map_err(|e| UtxoSyncError::UserWith(Box::new(e)))
+                store_filter(&db, &hash, h, filter)
+                    .map_err(|e| UtxoSyncError::UserWith(Box::new(e)))
             }
         },
     )
@@ -151,10 +159,16 @@ pub async fn sync_filters(
             Ok(Err(e)) => {
                 eprintln!("Sync was failed with error: {}", e);
                 restart_handle.abort();
-            },
+            }
             Ok(Ok(())) => (),
         }
     });
 
-    (utxo_sink, utxo_stream, sync_mutex, abort_handle, restart_registration)
+    (
+        utxo_sink,
+        utxo_stream,
+        sync_mutex,
+        abort_handle,
+        restart_registration,
+    )
 }
