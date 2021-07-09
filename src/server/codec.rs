@@ -22,7 +22,7 @@ impl Decoder for MessageCodec {
         if !buf.is_empty() {
             match deserialize_partial::<Message>(buf) {
                 Err(Error::Io(ref err)) if err.kind() == io::ErrorKind::UnexpectedEof => Ok(None),
-                Err(err) => return Err(err),
+                Err(err) => Err(err),
                 Ok((message, index)) => {
                     let _ = buf.split_to(index);
                     Ok(Some(message))

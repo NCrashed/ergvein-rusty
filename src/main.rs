@@ -174,7 +174,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let dbname = matches.value_of("data").unwrap();
     println!("Opening database {:?}", dbname);
-    let db = Arc::new(init_storage(dbname.clone(), vec!["filters"])?);
+    let db = Arc::new(init_storage(dbname, vec!["filters"])?);
     println!("Creating cache");
     let cache = Arc::new(new_cache::<FilterCoin>());
     let fee_cache = Arc::new(Mutex::new(FeesCache::default()));
@@ -202,11 +202,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let fee_cache = fee_cache.clone();
         let rates_cache = rates_cache.clone();
         async move {
-            match indexer_server(listen_addr, db, fee_cache, rates_cache).await {
-                Err(err) => {
-                    eprintln!("Failed to listen TCP server: {}", err);
-                }
-                Ok(_) => (),
+            if let Err(err) = indexer_server(listen_addr, db, fee_cache, rates_cache).await {
+                eprintln!("Failed to listen TCP server: {}", err);
             }
         }
     });
@@ -229,10 +226,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         pin_mut!(headers_sink);
         let (abort_headers_handle, abort_headers_registration) = AbortHandle::new_pair();
         tokio::spawn(async move {
-            let res = Abortable::new(headers_future, abort_headers_registration).await;
-            match res {
-                Err(Aborted) => eprintln!("Headers task was aborted!"),
-                _ => (),
+            if let Err(Aborted) = Abortable::new(headers_future, abort_headers_registration).await {
+                eprintln!("Headers task was aborted!")
             }
         });
 

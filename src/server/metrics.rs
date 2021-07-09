@@ -43,7 +43,7 @@ pub async fn serve_metrics(addr: SocketAddr, db: Arc<DB>, db_path: String) {
         TextEncoder::new()
             .encode(&metric_families, &mut buffer)
             .unwrap();
-        String::from_utf8(buffer.clone()).unwrap()
+        String::from_utf8(buffer).unwrap()
     });
     let routes = warp::get().and(metrics);
 

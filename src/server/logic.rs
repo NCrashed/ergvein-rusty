@@ -43,7 +43,6 @@ pub async fn indexer_logic(
     let (in_sender, mut in_reciver) = mpsc::unbounded_channel::<Message>();
     let (out_sender, out_reciver) = mpsc::unbounded_channel::<Message>();
     let logic_future = {
-        let db = db.clone();
         async move {
             handshake(addr.clone(), db.clone(), &mut in_reciver, &out_sender).await?;
 
@@ -125,22 +124,22 @@ async fn handshake(
         tokio::select! {
             _ = &mut timeout => {
                 eprintln!("Handshake timeout {}", addr);
-                Err(IndexerError::HandshakeTimeout)?
+                return Err(IndexerError::HandshakeTimeout)
             }
             emsg = msg_reciever.recv() => match emsg {
                 None => {
                     eprintln!("Failed to recv handshake for {}", addr);
-                    Err(IndexerError::HandshakeRecv)?
+                    return Err(IndexerError::HandshakeRecv)
                 }
                 Some(msg) => match msg {
                     Message::Version(vmsg)=> {
                         if !Version::current().compatible(&vmsg.version) {
                             eprint!("Not compatible version for client {}, version {:?}", addr, vmsg.version);
-                            Err(IndexerError::NotCompatible(vmsg.version.clone()))?;
+                            return Err(IndexerError::NotCompatible(vmsg.version));
                         }
                         if vmsg.nonce == ver_msg.nonce {
                             eprint!("Connected to self, nonce identical for {}", addr);
-                            Err(IndexerError::HandshakeNonceIdentical)?;
+                            return  Err(IndexerError::HandshakeNonceIdentical);
                         }
                         println!("Handshaked with client {} and version {:?}", addr, vmsg.version);
                         got_version = true;
@@ -155,7 +154,7 @@ async fn handshake(
                     }
                     _ => {
                         eprintln!("Received from {} something that not handshake: {:?}", addr, msg);
-                        Err(IndexerError::HandshakeViolation)?;
+                        return Err(IndexerError::HandshakeViolation);
                     },
                 },
             }
@@ -224,7 +223,7 @@ async fn serve_filters(
                                 message: format!("Not supported currency {:?}", req.currency),
                             }))
                             .unwrap();
-                        Err(IndexerError::NotSupportedCurrency(req.currency))?
+                        return Err(IndexerError::NotSupportedCurrency(req.currency));
                     }
                     let h = get_filters_height(&db);
                     if req.start > h as u64 {
