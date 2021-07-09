@@ -155,6 +155,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 .default_value("60")
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("mempool-timeout")
+                .long("mempool-timeout")
+                .value_name("MEMPOOL_TIMEOUT")
+                .help("Filter timeout. After it, consider the attempt failed and yield all mutexes")
+                .default_value("10")
+                .takes_value(true),
+        )
         .get_matches();
 
     let str_address = matches.value_of("bitcoin").unwrap();
@@ -171,7 +179,6 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let cache = Arc::new(new_cache::<FilterCoin>());
     let fee_cache = Arc::new(Mutex::new(FeesCache::default()));
     let rates_cache = Arc::new(new_rates_cache());
-    let mempool_period = value_t!(matches, "mempool-period", u64).unwrap_or(60);
     tokio::spawn({
         let fee_cache = fee_cache.clone();
         async move {
@@ -242,9 +249,24 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let txtree = Arc::new(TxTree::new());
         let ftree = Arc::new(FilterTree::new());
         let full_filter = Arc::new(tokio::sync::Mutex::new(None));
-        let mempool_dur = Duration::from_secs(mempool_period);
+        let mempool_period = Duration::from_secs(
+            value_t!(matches, "mempool-period", u64).unwrap_or(60)
+        );
+        let mempool_timeout = Duration::from_secs(
+            value_t!(matches, "mempool-timeout", u64).unwrap_or(60)
+        );
         let (tx_future, filt_future, filters_sink, filters_stream) =
-            mempool_worker(txtree, ftree, full_filter, db.clone(), cache.clone(), sync_mutex.clone(), coin_script, mempool_dur).await;
+            mempool_worker(
+                txtree,
+                ftree,
+                full_filter,
+                db.clone(),
+                cache.clone(),
+                sync_mutex.clone(),
+                coin_script,
+                mempool_period,
+                mempool_timeout
+            ).await;
 
         tokio::spawn(async move {
             tx_future.await.map_or_else(|e| eprintln!("TxTree task was aborted: {:?}", e), |_| ())
