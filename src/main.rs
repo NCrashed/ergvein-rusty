@@ -26,13 +26,16 @@ use crate::server::connection::indexer_server;
 use crate::server::fee::{fees_requester, FeesCache};
 use crate::server::metrics::serve_metrics;
 use crate::server::rates::{new_rates_cache, rates_requester};
+use crate::utxo::coin_script;
 use crate::utxo::FilterCoin;
 
 use futures::future::{AbortHandle, Abortable, Aborted};
 use futures::pin_mut;
 use futures::stream;
 use futures::SinkExt;
-
+use mempool_filters::filtertree::FilterTree;
+use mempool_filters::txtree::TxTree;
+use mempool_filters::worker::mempool_worker;
 use std::error::Error;
 use std::net::{IpAddr, SocketAddr};
 use std::sync::Arc;
@@ -144,6 +147,22 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 .default_value("9667")
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("mempool-period")
+                .long("mempool-period")
+                .value_name("MEMPOOL_PERIOD")
+                .help("How often to rebuild mempool filters. Integer seconds")
+                .default_value("60")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("mempool-timeout")
+                .long("mempool-timeout")
+                .value_name("MEMPOOL_TIMEOUT")
+                .help("Filter timeout. After it, consider the attempt failed and yield all mutexes")
+                .default_value("10")
+                .takes_value(true),
+        )
         .get_matches();
 
     let str_address = matches.value_of("bitcoin").unwrap();
@@ -155,12 +174,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     let dbname = matches.value_of("data").unwrap();
     println!("Opening database {:?}", dbname);
-    let db = Arc::new(init_storage(dbname.clone(), vec!["filters"])?);
+    let db = Arc::new(init_storage(dbname, vec!["filters"])?);
     println!("Creating cache");
     let cache = Arc::new(new_cache::<FilterCoin>());
     let fee_cache = Arc::new(Mutex::new(FeesCache::default()));
     let rates_cache = Arc::new(new_rates_cache());
-
     tokio::spawn({
         let fee_cache = fee_cache.clone();
         async move {
@@ -184,11 +202,8 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let fee_cache = fee_cache.clone();
         let rates_cache = rates_cache.clone();
         async move {
-            match indexer_server(listen_addr, db, fee_cache, rates_cache).await {
-                Err(err) => {
-                    eprintln!("Failed to listen TCP server: {}", err);
-                }
-                Ok(_) => (),
+            if let Err(err) = indexer_server(listen_addr, db, fee_cache, rates_cache).await {
+                eprintln!("Failed to listen TCP server: {}", err);
             }
         }
     });
@@ -211,36 +226,74 @@ async fn main() -> Result<(), Box<dyn Error>> {
         pin_mut!(headers_sink);
         let (abort_headers_handle, abort_headers_registration) = AbortHandle::new_pair();
         tokio::spawn(async move {
-            let res = Abortable::new(headers_future, abort_headers_registration).await;
-            match res {
-                Err(Aborted) => eprintln!("Headers task was aborted!"),
-                _ => (),
+            if let Err(Aborted) = Abortable::new(headers_future, abort_headers_registration).await {
+                eprintln!("Headers task was aborted!")
             }
         });
 
-        let (utxo_sink, utxo_stream, abort_utxo_handle, restart_registration) = sync_filters(
+        let (utxo_sink, utxo_stream, sync_mutex, abort_utxo_handle, restart_registration) =
+            sync_filters(
+                db.clone(),
+                cache.clone(),
+                value_t!(matches, "fork-depth", u32).unwrap(),
+                value_t!(matches, "max-cache", usize).unwrap(),
+                value_t!(matches, "flush-period", u32).unwrap(),
+                value_t!(matches, "block-batch", usize).unwrap(),
+            )
+            .await;
+
+        let txtree = Arc::new(TxTree::new());
+        let ftree = Arc::new(FilterTree::new());
+        let full_filter = Arc::new(tokio::sync::Mutex::new(None));
+        let mempool_period =
+            Duration::from_secs(value_t!(matches, "mempool-period", u64).unwrap_or(60));
+        let mempool_timeout =
+            Duration::from_secs(value_t!(matches, "mempool-timeout", u64).unwrap_or(60));
+        let (tx_future, filt_future, filters_sink, filters_stream) = mempool_worker(
+            txtree,
+            ftree,
+            full_filter,
             db.clone(),
             cache.clone(),
-            value_t!(matches, "fork-depth", u32).unwrap(),
-            value_t!(matches, "max-cache", usize).unwrap(),
-            value_t!(matches, "flush-period", u32).unwrap(),
-            value_t!(matches, "block-batch", usize).unwrap(),
+            sync_mutex.clone(),
+            coin_script,
+            mempool_period,
+            mempool_timeout,
         )
         .await;
-        pin_mut!(utxo_sink);
 
-        let msg_stream = stream::select(headers_stream, utxo_stream);
-        let msg_sink = headers_sink.fanout(utxo_sink);
+        tokio::spawn(async move {
+            tx_future
+                .await
+                .map_or_else(|e| eprintln!("TxTree task was aborted: {:?}", e), |_| ())
+        });
+
+        tokio::spawn(async move {
+            filt_future.await.map_or_else(
+                |e| eprintln!("FilterTree task was aborted: {:?}", e),
+                |_| (),
+            )
+        });
+
+        pin_mut!(utxo_sink);
+        pin_mut!(filters_sink);
+
+        let msg_stream =
+            stream::select(headers_stream, stream::select(utxo_stream, filters_stream));
+        let msg_sink = headers_sink.fanout(utxo_sink.fanout(filters_sink));
 
         println!("Connecting to node");
-        let res = Abortable::new(connect(
-            &address,
-            constants::Network::Bitcoin,
-            "rust-client".to_string(),
-            0,
-            msg_stream,
-            msg_sink,
-        ), restart_registration)
+        let res = Abortable::new(
+            connect(
+                &address,
+                constants::Network::Bitcoin,
+                "rust-client".to_string(),
+                0,
+                msg_stream,
+                msg_sink,
+            ),
+            restart_registration,
+        )
         .await;
 
         match res {
@@ -260,8 +313,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                     println!("Gracefull termination");
                     break;
                 }
-            }
-
+            },
         }
     }
 

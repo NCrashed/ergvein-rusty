@@ -60,7 +60,7 @@ where
 
                         Abortable::new(connect(&mut socket, msg_stream, msg_sink), reg_conn_abort)
                             .await
-                            .unwrap_or_else(|_| Ok(()))
+                            .unwrap_or(Ok(()))
                             .unwrap_or_else(|err| {
                                 println!("Connection to {} is closed with {}", peer_addr, err);
                                 abort_logic.abort();
