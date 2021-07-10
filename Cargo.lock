@@ -922,7 +922,7 @@ dependencies = [
 [[package]]
 name = "mempool_filters"
 version = "0.1.0"
-source = "git+https://github.com/hexresearch/btc-mempool-filters?rev=fa2d6874e86a5a620bb4bc864317161030a5170d#fa2d6874e86a5a620bb4bc864317161030a5170d"
+source = "git+https://github.com/hexresearch/btc-mempool-filters?rev=477a9d35ddda807302e6bd63043d306f35640284#477a9d35ddda807302e6bd63043d306f35640284"
 dependencies = [
  "bitcoin",
  "bitcoin-utxo",

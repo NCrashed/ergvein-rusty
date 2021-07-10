@@ -249,7 +249,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
             Duration::from_secs(value_t!(matches, "mempool-period", u64).unwrap_or(60));
         let mempool_timeout =
             Duration::from_secs(value_t!(matches, "mempool-timeout", u64).unwrap_or(60));
-        let (tx_future, filt_future, filters_sink, filters_stream) = mempool_worker(
+        let (mempool_future, filters_sink, filters_stream) = mempool_worker(
             txtree,
             ftree,
             full_filter,
@@ -263,16 +263,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         .await;
 
         tokio::spawn(async move {
-            tx_future
+            mempool_future
                 .await
-                .map_or_else(|e| eprintln!("TxTree task was aborted: {:?}", e), |_| ())
-        });
-
-        tokio::spawn(async move {
-            filt_future.await.map_or_else(
-                |e| eprintln!("FilterTree task was aborted: {:?}", e),
-                |_| (),
-            )
+                .map_or_else(|e| eprintln!("Mempool task was aborted: {:?}", e), |_| ())
         });
 
         pin_mut!(utxo_sink);
