@@ -179,6 +179,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
     let cache = Arc::new(new_cache::<FilterCoin>());
     let fee_cache = Arc::new(Mutex::new(FeesCache::default()));
     let rates_cache = Arc::new(new_rates_cache());
+    let txtree = Arc::new(TxTree::new());
+    let ftree = Arc::new(FilterTree::new());
+    let full_filter = Arc::new(tokio::sync::RwLock::new(None));
     tokio::spawn({
         let fee_cache = fee_cache.clone();
         async move {
@@ -201,8 +204,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let db = db.clone();
         let fee_cache = fee_cache.clone();
         let rates_cache = rates_cache.clone();
+        let txtree = txtree.clone();
+        let ftree = ftree.clone();
+        let full_filter = full_filter.clone();
         async move {
-            if let Err(err) = indexer_server(listen_addr, db, fee_cache, rates_cache).await {
+            if let Err(err) = indexer_server(listen_addr, db, fee_cache, rates_cache, txtree, ftree, full_filter).await {
                 eprintln!("Failed to listen TCP server: {}", err);
             }
         }
@@ -242,17 +248,14 @@ async fn main() -> Result<(), Box<dyn Error>> {
             )
             .await;
 
-        let txtree = Arc::new(TxTree::new());
-        let ftree = Arc::new(FilterTree::new());
-        let full_filter = Arc::new(tokio::sync::Mutex::new(None));
         let mempool_period =
             Duration::from_secs(value_t!(matches, "mempool-period", u64).unwrap_or(60));
         let mempool_timeout =
             Duration::from_secs(value_t!(matches, "mempool-timeout", u64).unwrap_or(60));
         let (mempool_future, filters_sink, filters_stream) = mempool_worker(
-            txtree,
-            ftree,
-            full_filter,
+            txtree.clone(),
+            ftree.clone(),
+            full_filter.clone(),
             db.clone(),
             cache.clone(),
             sync_mutex.clone(),
