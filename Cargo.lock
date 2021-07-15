@@ -399,6 +399,7 @@ dependencies = [
 [[package]]
 name = "ergvein-protocol"
 version = "0.1.0"
+source = "git+https://github.com/hexresearch/ergvein-protocol?rev=6e85b2ac79adc282d3adb27adb1ea5cadfeba97d#6e85b2ac79adc282d3adb27adb1ea5cadfeba97d"
 dependencies = [
  "consensus-encode",
  "fix",
@@ -923,6 +924,7 @@ dependencies = [
 [[package]]
 name = "mempool_filters"
 version = "0.1.0"
+source = "git+https://github.com/hexresearch/btc-mempool-filters?rev=1af5f4ed8e7e59003adff170ad84ed6ac6b85d34#1af5f4ed8e7e59003adff170ad84ed6ac6b85d34"
 dependencies = [
  "bitcoin",
  "bitcoin-utxo",

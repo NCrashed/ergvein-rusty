@@ -9,16 +9,11 @@ edition = "2018"
 [dependencies]
 bitcoin =  { version = "^0.26", features = [ "rand" ] }
 bitcoin_hashes = "^0.9"
-bitcoin-utxo = { git = "https://github.com/hexresearch/bitcoin-utxo", rev = "452327a2c805d83e663277e416e0832c9e9151ac" }
 byteorder = "1"
 bytes = "1"
 chrono = "^0.4"
 clap = "2.33.3"
-consensus-encode = { git = "https://github.com/NCrashed/consensus-encode", rev = "8c04d05aecc1d0f320fb1ebed0878772c1e83c72" }
 dashmap = "4.0"
-ergvein-filters = { git = "https://github.com/hexresearch/ergvein-filters", rev = "529d0dd4ff9bea3c0e2508ace972de58e2236740" }
-ergvein-protocol = { path = "../ergvein-protocol" }
-# ergvein-protocol = { git = "https://github.com/hexresearch/ergvein-protocol", rev = "58fcfc7711f23ff0d787002ae075618c6b33b649" }
 fs2 = "0.4.3"
 futures = "0.3"
 hex = "0.4"
@@ -32,8 +27,12 @@ tokio = { version = "1", features = ["full"] }
 tokio-stream = "0.1"
 tokio-util = { version = "0.6", features = [ "codec" ] }
 warp = "0.3.1"
-mempool_filters = {path = "../btc-mempool-filters"}
-# mempool_filters = {git = "https://github.com/hexresearch/btc-mempool-filters", rev = "477a9d35ddda807302e6bd63043d306f35640284"}
+
+bitcoin-utxo = { git = "https://github.com/hexresearch/bitcoin-utxo", rev = "452327a2c805d83e663277e416e0832c9e9151ac" }
+consensus-encode = { git = "https://github.com/NCrashed/consensus-encode", rev = "8c04d05aecc1d0f320fb1ebed0878772c1e83c72" }
+ergvein-filters = { git = "https://github.com/hexresearch/ergvein-filters", rev = "529d0dd4ff9bea3c0e2508ace972de58e2236740" }
+ergvein-protocol = { git = "https://github.com/hexresearch/ergvein-protocol", rev = "6e85b2ac79adc282d3adb27adb1ea5cadfeba97d" }
+mempool_filters = {git = "https://github.com/hexresearch/btc-mempool-filters", rev = "1af5f4ed8e7e59003adff170ad84ed6ac6b85d34"}
 
 # [profile.release]
 # debug = 1
