@@ -400,15 +400,9 @@ dependencies = [
 name = "ergvein-protocol"
 version = "0.1.0"
 dependencies = [
- "bitcoin",
- "bitcoin_hashes",
- "chrono",
  "consensus-encode",
- "ergvein-filters",
  "fix",
  "flate2",
- "mempool_filters",
- "rand 0.8.4",
 ]
 
 [[package]]

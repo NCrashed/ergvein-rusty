@@ -347,11 +347,11 @@ async fn message_handler(
                     for TxPrefix(pref) in prefixes {
                         if let Some(ptxs) = txtree.get(pref) {
                             let txs = ptxs.value();
-                            let mut data: Vec<u8> = Vec::new();
+                            let mut data: Vec<Vec<u8>> = Vec::new();
                             txs.values().for_each(|(tx,_)| {
-                                data.append(&mut serialize(tx))
+                                data.push(serialize(tx))
                             });
-                            let chunk = MempoolChunkResp {prefix: TxPrefix(pref.clone()), amount: txs.len() as u32, data};
+                            let chunk = MempoolChunkResp {prefix: TxPrefix(pref.clone()), txs: data};
                             msg_sender.send(Message::MempoolChunk(chunk)).unwrap();
                         };
                     }
