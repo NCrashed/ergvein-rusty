@@ -208,7 +208,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let ftree = ftree.clone();
         let full_filter = full_filter.clone();
         async move {
-            if let Err(err) = indexer_server(listen_addr, db, fee_cache, rates_cache, txtree, ftree, full_filter).await {
+            if let Err(err) = indexer_server(
+                listen_addr,
+                db,
+                fee_cache,
+                rates_cache,
+                txtree,
+                ftree,
+                full_filter,
+            )
+            .await
+            {
                 eprintln!("Failed to listen TCP server: {}", err);
             }
         }

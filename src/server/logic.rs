@@ -2,13 +2,13 @@ use super::fee::FeesCache;
 use super::metrics::*;
 use super::rates::RatesCache;
 use crate::filter::*;
-use bitcoin_utxo::storage::chain::get_chain_height;
 use bitcoin::consensus::encode::serialize;
+use bitcoin_utxo::storage::chain::get_chain_height;
 
 use ergvein_filters::mempool::ErgveinMempoolFilter;
-use ergvein_protocol::message::*;
-use ergvein_protocol::message::Message;
 use ergvein_protocol::message::MemFilter;
+use ergvein_protocol::message::Message;
+use ergvein_protocol::message::*;
 use futures::sink;
 use futures::{Future, Sink, Stream};
 
@@ -75,7 +75,8 @@ pub async fn indexer_logic(
             tokio::pin!(messages_fut);
 
             let announce_fut = announce_filters(db.clone(), &out_sender);
-            let announce_mempool_filters_fut = announce_mempool_filters(full_filter.clone(), &&out_sender);
+            let announce_mempool_filters_fut =
+                announce_mempool_filters(full_filter.clone(), &&out_sender);
             tokio::pin!(announce_fut);
             tokio::pin!(announce_mempool_filters_fut);
 
@@ -334,10 +335,16 @@ async fn message_handler(
                 }
                 Message::GetMemFilters => {
                     let ftree = ftree.clone();
-                    let mut fpairs : Vec<FilterPrefixPair> = ftree.iter().map(|kv| {
-                        let (k,v) = kv.pair();
-                        FilterPrefixPair{prefix:TxPrefix(k.clone()), filter: MemFilter(v.content.clone())}
-                    }).collect();
+                    let mut fpairs: Vec<FilterPrefixPair> = ftree
+                        .iter()
+                        .map(|kv| {
+                            let (k, v) = kv.pair();
+                            FilterPrefixPair {
+                                prefix: TxPrefix(*k),
+                                filter: MemFilter(v.content.clone()),
+                            }
+                        })
+                        .collect();
 
                     fpairs.sort_by_key(|fp| fp.prefix.clone());
                     msg_sender.send(Message::MemFilters(fpairs)).unwrap();
@@ -348,10 +355,11 @@ async fn message_handler(
                         if let Some(ptxs) = txtree.get(pref) {
                             let txs = ptxs.value();
                             let mut data: Vec<Vec<u8>> = Vec::new();
-                            txs.values().for_each(|(tx,_)| {
-                                data.push(serialize(tx))
-                            });
-                            let chunk = MempoolChunkResp {prefix: TxPrefix(pref.clone()), txs: data};
+                            txs.values().for_each(|(tx, _)| data.push(serialize(tx)));
+                            let chunk = MempoolChunkResp {
+                                prefix: TxPrefix(*pref),
+                                txs: data,
+                            };
                             msg_sender.send(Message::MempoolChunk(chunk)).unwrap();
                         };
                     }
@@ -386,7 +394,7 @@ async fn announce_filters(
 async fn announce_mempool_filters(
     full_filter: Arc<tokio::sync::RwLock<Option<ErgveinMempoolFilter>>>,
     msg_sender: &mpsc::UnboundedSender<Message>,
-) -> Result<(), IndexerError>{
+) -> Result<(), IndexerError> {
     let mut old_filt = None;
     loop {
         tokio::time::sleep(Duration::from_secs(3)).await;

@@ -1,13 +1,15 @@
 use super::fee::FeesCache;
 use super::rates::RatesCache;
 
-use ergvein_filters::mempool::ErgveinMempoolFilter;use ergvein_protocol::message::*;
+use ergvein_filters::mempool::ErgveinMempoolFilter;
+use ergvein_protocol::message::*;
 use futures::future::{AbortHandle, Abortable, Aborted};
 use futures::pin_mut;
 use futures::{future, Sink, SinkExt, Stream, StreamExt};
 
-
-use mempool_filters::filtertree::FilterTree;use mempool_filters::txtree::TxTree;use rocksdb::DB;
+use mempool_filters::filtertree::FilterTree;
+use mempool_filters::txtree::TxTree;
+use rocksdb::DB;
 use std::error::Error;
 use std::fmt::Display;
 use std::sync::{Arc, Mutex};
@@ -52,8 +54,16 @@ where
                         ACTIVE_CONNS_GAUGE.inc();
 
                         let peer_addr = format!("{}", socket.peer_addr().unwrap());
-                        let (msg_future, msg_stream, msg_sink) =
-                            indexer_logic(peer_addr.clone(), db.clone(), fees, rates, txtree, ftree, full_filter).await;
+                        let (msg_future, msg_stream, msg_sink) = indexer_logic(
+                            peer_addr.clone(),
+                            db.clone(),
+                            fees,
+                            rates,
+                            txtree,
+                            ftree,
+                            full_filter,
+                        )
+                        .await;
                         pin_mut!(msg_sink);
 
                         let (abort_logic, reg_logic_abort) = AbortHandle::new_pair();
