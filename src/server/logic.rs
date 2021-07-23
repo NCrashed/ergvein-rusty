@@ -327,6 +327,7 @@ async fn message_handler(
                     msg_sender.send(Message::Rates(resp)).unwrap();
                 }
                 Message::GetFullFilter => {
+                    println!("GetFullFilter");
                     let ffilter = full_filter.read().await;
                     if let Some(filter) = ffilter.clone() {
                         let resp = MemFilter(filter.content);
@@ -334,6 +335,7 @@ async fn message_handler(
                     }
                 }
                 Message::GetMemFilters => {
+                    println!("GetMemFilters");
                     let ftree = ftree.clone();
                     let mut fpairs: Vec<FilterPrefixPair> = ftree
                         .iter()
@@ -347,9 +349,11 @@ async fn message_handler(
                         .collect();
 
                     fpairs.sort_by_key(|fp| fp.prefix.clone());
+                    println!("Sending {} filter pairs", fpairs.len());
                     msg_sender.send(Message::MemFilters(fpairs)).unwrap();
                 }
                 Message::GetMempool(prefixes) => {
+                    println!("GetMempool");
                     let txtree = txtree.clone();
                     for TxPrefix(pref) in prefixes {
                         if let Some(ptxs) = txtree.get(pref) {
@@ -400,6 +404,7 @@ async fn announce_mempool_filters(
         tokio::time::sleep(Duration::from_secs(3)).await;
         let ffilt_read = full_filter.read().await;
         if old_filt != *ffilt_read {
+            println!("Sending FullFilterInv");
             msg_sender.send(Message::FullFilterInv).unwrap();
             old_filt = ffilt_read.clone();
         }

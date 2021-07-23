@@ -32,7 +32,8 @@ bitcoin-utxo = { git = "https://github.com/hexresearch/bitcoin-utxo", rev = "452
 consensus-encode = { git = "https://github.com/NCrashed/consensus-encode", rev = "8c04d05aecc1d0f320fb1ebed0878772c1e83c72" }
 ergvein-filters = { git = "https://github.com/hexresearch/ergvein-filters", rev = "529d0dd4ff9bea3c0e2508ace972de58e2236740" }
 ergvein-protocol = { git = "https://github.com/hexresearch/ergvein-protocol", rev = "6e85b2ac79adc282d3adb27adb1ea5cadfeba97d" }
-mempool_filters = {git = "https://github.com/hexresearch/btc-mempool-filters", rev = "1af5f4ed8e7e59003adff170ad84ed6ac6b85d34"}
+mempool_filters = { path = "../btc-mempool-filters" }
+# mempool_filters = {git = "https://github.com/hexresearch/btc-mempool-filters", rev = "1af5f4ed8e7e59003adff170ad84ed6ac6b85d34"}
 
 # [profile.release]
 # debug = 1
