@@ -6,6 +6,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 use warp::Filter;
 use crate::server::block_explorer::*;
+use futures::executor;
 
 lazy_static! {
     pub static ref ACTIVE_CONNS_GAUGE: IntGauge =
@@ -47,6 +48,11 @@ pub async fn serve_metrics(addr: SocketAddr, db: Arc<DB>, db_path: String) {
     
     let db = db.clone();
     let metrics = warp::path::end().map(move || {
+        let btc_actual_height = executor::block_on(ask_btc_actual_height());
+        match btc_actual_height {
+          Ok(height) => BTC_BLOCK_EXPLORER_HEIGHT.set (height),
+          _ => BTC_BLOCK_EXPLORER_HEIGHT.set(0)
+        }
         BTC_HEIGHT_GAUGE.set(get_chain_height(&db) as i64);
         BTC_SCAN_GAUGE.set(get_filters_height(&db) as i64);
         SPACE_GAUGE.set(fs2::available_space(&db_path).unwrap_or(0) as i64);
