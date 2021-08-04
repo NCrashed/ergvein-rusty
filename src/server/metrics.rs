@@ -47,8 +47,8 @@ pub async fn serve_metrics(addr: SocketAddr, db: Arc<DB>, db_path: String) {
     SPACE_GAUGE.set(fs2::available_space(db_path.clone()).unwrap_or(0) as i64);
     
     let db = db.clone();
-    let metrics = warp::path::end().map(move || {
-        let btc_actual_height = executor::block_on(ask_btc_actual_height());
+    let metrics = warp::path::param().and_then(async move || {
+        let btc_actual_height = ask_btc_actual_height().await;
         match btc_actual_height {
           Ok(height) => BTC_BLOCK_EXPLORER_HEIGHT.set (height),
           _ => BTC_BLOCK_EXPLORER_HEIGHT.set(0)
