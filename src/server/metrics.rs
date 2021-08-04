@@ -4,9 +4,8 @@ use prometheus::{self, Encoder, IntCounter, IntGauge, TextEncoder};
 use rocksdb::DB;
 use std::net::SocketAddr;
 use std::sync::Arc;
-use warp::{Filter, Rejection, path};
+use warp::{Filter, Rejection};
 use crate::server::block_explorer::*;
-use futures::executor;
 
 lazy_static! {
     pub static ref ACTIVE_CONNS_GAUGE: IntGauge =
@@ -47,7 +46,7 @@ pub async fn serve_metrics(addr: SocketAddr, db: Arc<DB>, db_path: String) {
     SPACE_GAUGE.set(fs2::available_space(db_path.clone()).unwrap_or(0) as i64);
     
     
-    let metrics = path!("/").and_then(move || {
+    let metrics = warp::path::end().and_then(move || {
         let db = db.clone();
         let db_path = db_path.clone();
         async move {
