@@ -244,7 +244,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         let txtree = Arc::new(TxTree::new());
         let ftree = Arc::new(FilterTree::new());
-        let full_filter = Arc::new(tokio::sync::Mutex::new(None));
+        let full_filter = Arc::new(tokio::sync::RwLock::new(None));
         let mempool_period =
             Duration::from_secs(value_t!(matches, "mempool-period", u64).unwrap_or(60));
         let mempool_timeout =

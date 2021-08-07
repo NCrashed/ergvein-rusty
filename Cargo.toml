@@ -9,7 +9,8 @@ edition = "2018"
 [dependencies]
 bitcoin =  { version = "^0.26", features = [ "rand" ] }
 bitcoin_hashes = "^0.9"
-bitcoin-utxo = { git = "https://github.com/hexresearch/bitcoin-utxo", rev = "452327a2c805d83e663277e416e0832c9e9151ac" }
+bitcoin-utxo = { git = "https://github.com/hexresearch/bitcoin-utxo", branch = "debug" }
+# bitcoin-utxo = { path = "../bitcoin-utxo" }
 byteorder = "1"
 bytes = "1"
 chrono = "^0.4"
@@ -32,7 +33,7 @@ tokio-stream = "0.1"
 tokio-util = { version = "0.6", features = [ "codec" ] }
 warp = "0.3.1"
 # mempool_filters = {path = "../btc-mempool-filters"}
-mempool_filters = {git = "https://github.com/hexresearch/btc-mempool-filters", rev = "477a9d35ddda807302e6bd63043d306f35640284"}
+mempool_filters = {git = "https://github.com/NCrashed/btc-mempool-filters", branch = "debug" }
 
 # [profile.release]
 # debug = 1
