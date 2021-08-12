@@ -16,6 +16,8 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::time::Duration;
 
+use crate::server::block_explorer::*;
+
 pub async fn generate_filter(
     db: Arc<DB>,
     cache: Arc<UtxoCache<FilterCoin>>,
@@ -152,16 +154,29 @@ pub async fn sync_filters(
 
     let (abort_handle, abort_registration) = AbortHandle::new_pair();
     let (restart_handle, restart_registration) = AbortHandle::new_pair();
+    
     tokio::spawn(async move {
-        let res = Abortable::new(sync_future, abort_registration).await;
-        match res {
-            Err(Aborted) => eprintln!("Sync task was aborted!"),
-            Ok(Err(e)) => {
-                eprintln!("Sync was failed with error: {}", e);
+        let five_seconds = Duration::new(5, 0);
+        let mut interval = tokio::time::interval(five_seconds);
+        let ff = async  move {
+            
+            loop {
+                let r = get_chain_height(&db) as i64;
+                tokio::time::sleep(Duration::from_millis(1000)).await;
+                let btc_actual_height = ask_btc_actual_height().await;
+            }
+        };
+        tokio::select! {
+            _ = interval.tick() => {
                 restart_handle.abort();
             }
-            Ok(Ok(())) => (),
-        }
+            y = sync_future => {
+                if let Err(e) = y {
+                    eprintln!("Sync was failed with error: {}", e);
+                    restart_handle.abort();
+                }
+            }
+        };
     });
 
     (
