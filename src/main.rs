@@ -86,7 +86,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
                 .long("bitcoin")
                 .value_name("BITCOIN_NODE")
                 .help("Host and port for bitcoin node to use")
-                .default_value("78.108.102.8:8333")
+                .default_value("127.0.0.1:8333")
                 .multiple(true)
                 .takes_value(true),
         )

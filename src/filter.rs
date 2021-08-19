@@ -122,8 +122,8 @@ pub async fn sync_filters(
     AbortHandle,
     AbortRegistration,
 ) {
-    let db = db.clone();
     let cache = cache.clone();
+    let sync_db = db.clone();
     let (sync_future, sync_mutex, utxo_stream, utxo_sink) = sync_utxo_with(
         db.clone(),
         cache.clone(),
@@ -133,7 +133,7 @@ pub async fn sync_filters(
         block_batch,
         move |h, block| {
             let block = block.clone();
-            let db = db.clone();
+            let db = sync_db.clone();
             let cache = cache.clone();
             async move {
                 let hash = block.block_hash();
@@ -154,30 +154,29 @@ pub async fn sync_filters(
 
     let (abort_handle, abort_registration) = AbortHandle::new_pair();
     let (restart_handle, restart_registration) = AbortHandle::new_pair();
-    
-    tokio::spawn(async move {
-        let five_seconds = Duration::new(5, 0);
-        let mut interval = tokio::time::interval(five_seconds);
-        let ff = async  move {
-            
-            loop {
-                let r = get_chain_height(&db) as i64;
-                tokio::time::sleep(Duration::from_millis(1000)).await;
-                let btc_actual_height = ask_btc_actual_height().await;
-            }
-        };
-        tokio::select! {
-            _ = interval.tick() => {
-                restart_handle.abort();
-            }
-            y = sync_future => {
-                if let Err(e) = y {
-                    eprintln!("Sync was failed with error: {}", e);
+    {
+        let db = db.clone();
+        let sync_mutex = sync_mutex.clone();
+        tokio::spawn(async move {
+            let discrepancy_watch_feature = tokio::spawn(discrepancy_watch(db, sync_mutex));
+            let res_feature = Abortable::new(sync_future, abort_registration);
+            tokio::select! {
+                _ = discrepancy_watch_feature => {
                     restart_handle.abort();
                 }
-            }
-        };
-    });
+                res = res_feature => {
+                    match res {
+                        Err(Aborted) => eprintln!("Sync task was aborted!"),
+                        Ok(Err(e)) => {
+                            eprintln!("Sync was failed with error: {}", e);
+                            restart_handle.abort();
+                        }
+                        Ok(Ok(())) => (),
+                    }
+                }
+            };
+        });
+    }
 
     (
         utxo_sink,
@@ -186,4 +185,18 @@ pub async fn sync_filters(
         abort_handle,
         restart_registration,
     )
+}
+
+async fn discrepancy_watch (db: Arc<DB>, sync_mutex: Arc<Mutex<()>>) -> () {
+    let delay = Duration::from_secs_f64(3600.0);
+    let max_discrepancy = 4;
+    sync_mutex.lock().await;
+    loop {
+        let btc_scanned_height = get_chain_height(&db) as i64;
+        let btc_actual_height = ask_btc_actual_height().await.unwrap();
+        tokio::time::sleep(delay).await;
+        eprintln! ("{}", btc_actual_height - btc_scanned_height);
+        if (btc_actual_height - btc_scanned_height) > max_discrepancy {break;}
+    }
+    
 }
