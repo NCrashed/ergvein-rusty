@@ -17,11 +17,13 @@ extern crate prometheus;
 extern crate lazy_static;
 extern crate warp;
 
+pub mod options;
 pub mod filter;
 pub mod server;
 pub mod utxo;
 
 use crate::filter::*;
+use crate::options::*;
 use crate::server::connection::indexer_server;
 use crate::server::fee::{fees_requester, FeesCache};
 use crate::server::metrics::serve_metrics;
