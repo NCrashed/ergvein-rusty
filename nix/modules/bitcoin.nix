@@ -52,14 +52,14 @@ in {
       };
       nodeZMQPortBlock = mkOption {
         type = types.int;
-        default = 28332;
+        default = 29000;
         description = ''
           Which port the cryptonode serves RPC with ZeroMQ protocol. Block API.
         '';
       };
       nodeZMQPortTx = mkOption {
         type = types.int;
-        default = 28333;
+        default = 29000;
         description = ''
           Which port the cryptonode serves RPC with ZeroMQ protocol. Transaction API.
         '';
@@ -97,9 +97,13 @@ in {
           rpcallowip=${bitcoin-cfg.nodeAddress}
           rpcuser=${bitcoin-cfg.nodeUser}
           rpcport=${toString bitcoin-cfg.nodePort}
+          zmqpubrawblock=tcp://127.0.0.1:${toString bitcoin-cfg.nodeZMQPortBlock}
+          zmqpubrawtx=tcp://127.0.0.1:${toString bitcoin-cfg.nodeZMQPortTx}
+          dbcache=2048
+          rpcworkqueue=128
+          rpcclienttimeout=30
         '';
-        /* zmqpubrawblock=tcp://127.0.0.1:${toString bitcoin-cfg.nodeZMQPortBlock}
-        zmqpubrawtx=tcp://127.0.0.1:${toString bitcoin-cfg.nodeZMQPortTx} */
+        
         description = ''
           Configuration file for bitcoin.
         '';
