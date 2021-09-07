@@ -93,7 +93,6 @@ pub fn app_config () -> Option<AppConfig>  {
                 .long("bitcoin")
                 .value_name("BITCOIN_NODE")
                 .help("Host and port for bitcoin node to use")
-                .default_value("127.0.0.1:8333")
                 .multiple(true)
                 .takes_value(true)
         )
@@ -141,7 +140,7 @@ pub fn app_config () -> Option<AppConfig>  {
 
     let matches = app.get_matches();
     let is_testnet = matches.is_present("testnet");
-    let str_address = matches.value_of("bitcoin")?;
+    let str_address = matches.value_of("bitcoin").unwrap_or(if is_testnet {"127.0.0.1:18333"} else {"127.0.0.1:8333"});
     let address: SocketAddr = str_address.parse().ok()?;
     let db_name = matches.value_of("data")?.to_string();
     let host = matches.value_of("host")?.to_string();
