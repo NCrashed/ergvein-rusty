@@ -7,6 +7,7 @@ use std::option::*;
 use std::net::{IpAddr, SocketAddr};
 
 pub struct AppConfig {
+    pub is_testnet : bool,
     pub node_address : SocketAddr,
     pub db_name : String,
     pub host : String,
@@ -29,13 +30,21 @@ pub fn app_config () -> Option<AppConfig>  {
         .about("P2P node to support ergvein mobile wallet")
         .version(crate_version!())
         .arg(
+            Arg::with_name("testnet")
+                .short("t")
+                .long("testnet")
+                .value_name("TESTNET")
+                .help("network type")
+                .takes_value(false)
+        )
+        .arg(
             Arg::with_name("host")
                 .short("n")
                 .long("host")
                 .value_name("HOST")
                 .help("Listen network interface")
                 .default_value("0.0.0.0")
-                .takes_value(true),
+                .takes_value(true)
         )
         .arg(
             Arg::with_name("port")
@@ -44,15 +53,15 @@ pub fn app_config () -> Option<AppConfig>  {
                 .value_name("PORT")
                 .help("Listen port")
                 .default_value("8667")
-                .takes_value(true),
+                .takes_value(true)
         )
         .arg(
             Arg::with_name("fork-depth")
                 .long("fork-depth")
                 .value_name("BLOCKS_AMOUNT")
-                .help("Maximum reorganizatrion depth in blockchain")
+                .help("Maximum reorganization depth in blockchain")
                 .default_value(&fork_depth_def)
-                .takes_value(true),
+                .takes_value(true)
         )
         .arg(
             Arg::with_name("max-cache")
@@ -60,7 +69,7 @@ pub fn app_config () -> Option<AppConfig>  {
                 .value_name("COINS_AMOUNT")
                 .help("Maximum size of cache in coins amount, limits memory for cache")
                 .default_value(&cache_size_def)
-                .takes_value(true),
+                .takes_value(true)
         )
         .arg(
             Arg::with_name("flush-period")
@@ -68,7 +77,7 @@ pub fn app_config () -> Option<AppConfig>  {
                 .value_name("BLOCKS_AMOUNT")
                 .help("Flush cache to disk every given amount of blocks")
                 .default_value(&flush_period_def)
-                .takes_value(true),
+                .takes_value(true)
         )
         .arg(
             Arg::with_name("block-batch")
@@ -76,7 +85,7 @@ pub fn app_config () -> Option<AppConfig>  {
                 .value_name("BLOCKS_AMOUNT")
                 .help("Amount of blocks to process in parallel while syncing")
                 .default_value(&block_batch_def)
-                .takes_value(true),
+                .takes_value(true)
         )
         .arg(
             Arg::with_name("bitcoin")
@@ -86,7 +95,7 @@ pub fn app_config () -> Option<AppConfig>  {
                 .help("Host and port for bitcoin node to use")
                 .default_value("127.0.0.1:8333")
                 .multiple(true)
-                .takes_value(true),
+                .takes_value(true)
         )
         .arg(
             Arg::with_name("data")
@@ -95,7 +104,7 @@ pub fn app_config () -> Option<AppConfig>  {
                 .value_name("DATABASE_PATH")
                 .help("Directory where to store application state")
                 .default_value("./ergvein_rusty_db")
-                .takes_value(true),
+                .takes_value(true)
         )
         .arg(
             Arg::with_name("metrics-host")
@@ -103,7 +112,7 @@ pub fn app_config () -> Option<AppConfig>  {
                 .value_name("METRICS_HOST")
                 .help("Listen network interface for Prometheus metrics")
                 .default_value("0.0.0.0")
-                .takes_value(true),
+                .takes_value(true)
         )
         .arg(
             Arg::with_name("metrics-port")
@@ -111,7 +120,7 @@ pub fn app_config () -> Option<AppConfig>  {
                 .value_name("METRICS_PORT")
                 .help("Listen port")
                 .default_value("9667")
-                .takes_value(true),
+                .takes_value(true)
         )
         .arg(
             Arg::with_name("mempool-period")
@@ -119,7 +128,7 @@ pub fn app_config () -> Option<AppConfig>  {
                 .value_name("MEMPOOL_PERIOD")
                 .help("How often to rebuild mempool filters. Integer seconds")
                 .default_value("60")
-                .takes_value(true),
+                .takes_value(true)
         )
         .arg(
             Arg::with_name("mempool-timeout")
@@ -127,10 +136,11 @@ pub fn app_config () -> Option<AppConfig>  {
                 .value_name("MEMPOOL_TIMEOUT")
                 .help("Filter timeout. After it, consider the attempt failed and yield all mutexes")
                 .default_value("10")
-                .takes_value(true),
+                .takes_value(true)
         );
 
     let matches = app.get_matches();
+    let is_testnet = matches.is_present("testnet");
     let str_address = matches.value_of("bitcoin")?;
     let address: SocketAddr = str_address.parse().ok()?;
     let db_name = matches.value_of("data")?.to_string();
@@ -147,6 +157,7 @@ pub fn app_config () -> Option<AppConfig>  {
     let mempool_timeout = Duration::from_secs(value_t!(matches, "mempool-timeout", u64).unwrap_or(60));
 
     Some(AppConfig {
+        is_testnet: is_testnet,
         node_address : address,
         db_name : db_name, 
         host : host,
