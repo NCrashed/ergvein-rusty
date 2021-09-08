@@ -52,7 +52,6 @@ pub fn app_config () -> Option<AppConfig>  {
                 .long("port")
                 .value_name("PORT")
                 .help("Listen port")
-                .default_value("8667")
                 .takes_value(true)
         )
         .arg(
@@ -144,7 +143,7 @@ pub fn app_config () -> Option<AppConfig>  {
     let address: SocketAddr = str_address.parse().ok()?;
     let db_name = matches.value_of("data")?.to_string();
     let host = matches.value_of("host")?.to_string();
-    let port = value_t!(matches, "port", u32).ok()?;
+    let port = value_t!(matches, "port", u32).unwrap_or(if is_testnet {18333} else {8333});
     let metrics_host = value_t!(matches, "metrics-host", IpAddr).ok()?;
     let metrics_port = value_t!(matches, "metrics-port", u16).ok()?;
     let metrics_addr = SocketAddr::new(metrics_host, metrics_port);
