@@ -31,9 +31,8 @@ lazy_static! {
     .unwrap();
 }
 
-pub async fn serve_metrics(addr: SocketAddr, db: Arc<DB>, db_path: String) {
-    let btc_actual_height = ask_btc_actual_height().await;
-
+pub async fn serve_metrics(is_testnet : bool, addr: SocketAddr, db: Arc<DB>, db_path: String) {
+    let btc_actual_height = ask_btc_actual_height(is_testnet).await;
     match btc_actual_height {
       Ok(height) => BTC_BLOCK_EXPLORER_HEIGHT.set (height),
       _ => BTC_BLOCK_EXPLORER_HEIGHT.set(0)
@@ -50,7 +49,7 @@ pub async fn serve_metrics(addr: SocketAddr, db: Arc<DB>, db_path: String) {
         let db = db.clone();
         let db_path = db_path.clone();
         async move {
-            let btc_actual_height = ask_btc_actual_height().await;
+            let btc_actual_height = ask_btc_actual_height(is_testnet).await;
             match btc_actual_height {
               Ok(height) => BTC_BLOCK_EXPLORER_HEIGHT.set (height),
               _ => BTC_BLOCK_EXPLORER_HEIGHT.set(0)

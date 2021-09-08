@@ -109,6 +109,7 @@ pub fn read_filters(db: &DB, start: u32, amount: u32) -> Vec<(BlockHash, Ergvein
 }
 
 pub async fn sync_filters(
+    is_testnet: bool,
     db: Arc<DB>,
     cache: Arc<UtxoCache<FilterCoin>>,
     fork_height: u32,
@@ -158,7 +159,7 @@ pub async fn sync_filters(
         let db = db.clone();
         let sync_mutex = sync_mutex.clone();
         tokio::spawn(async move {
-            let discrepancy_watch_feature = tokio::spawn(discrepancy_watch(db, sync_mutex));
+            let discrepancy_watch_feature = tokio::spawn(discrepancy_watch(is_testnet, db, sync_mutex));
             let res_feature = Abortable::new(sync_future, abort_registration);
             tokio::select! {
                 _ = discrepancy_watch_feature => {
@@ -187,13 +188,13 @@ pub async fn sync_filters(
     )
 }
 
-async fn discrepancy_watch (db: Arc<DB>, sync_mutex: Arc<Mutex<()>>) -> () {
+async fn discrepancy_watch (is_testnet : bool, db: Arc<DB>, sync_mutex: Arc<Mutex<()>>) -> () {
     let delay = Duration::from_secs_f64(3600.0);
     let max_discrepancy = 4;
     sync_mutex.lock().await;
     loop {
         let btc_scanned_height = get_chain_height(&db) as i64;
-        let btc_actual_height = ask_btc_actual_height().await.unwrap();
+        let btc_actual_height = ask_btc_actual_height(is_testnet).await.unwrap();
         tokio::time::sleep(delay).await;
         eprintln! ("{}", btc_actual_height - btc_scanned_height);
         if (btc_actual_height - btc_scanned_height) > max_discrepancy {break;}

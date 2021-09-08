@@ -40,18 +40,30 @@ async fn request_btc_fees() -> Result<BtcFee, Error> {
     Ok(response.json().await)?
 }
 
-pub async fn fees_requester(cache: Arc<Mutex<FeesCache>>) {
-    loop {
-        match request_btc_fees().await {
-            Err(err) => {
-                eprintln!("Failed to request BTC fees: {:?}", err);
+pub async fn fees_requester(is_testnet: bool, cache: Arc<Mutex<FeesCache>>) {
+    if is_testnet {
+        let mut cache = cache.lock().unwrap();
+        let fee = BtcFee {
+            fastest_fee: 1,
+            half_hour_fee: 1,
+            hour_fee: 1,
+        };
+
+        println!("Bitcoin fees are {:?}", fee);
+        cache.btc = fee;
+    } else {
+        loop {
+            match request_btc_fees().await {
+                Err(err) => {
+                    eprintln!("Failed to request BTC fees: {:?}", err);
+                }
+                Ok(fee) => {
+                    let mut cache = cache.lock().unwrap();
+                    println!("Bitcoin fees are {:?}", fee);
+                    cache.btc = fee;
+                }
             }
-            Ok(fee) => {
-                let mut cache = cache.lock().unwrap();
-                println!("Bitcoin fees are {:?}", fee);
-                cache.btc = fee;
-            }
+            tokio::time::sleep(Duration::from_secs(5 * 60)).await;
         }
-        tokio::time::sleep(Duration::from_secs(5 * 60)).await;
     }
 }
