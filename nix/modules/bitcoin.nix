@@ -4,11 +4,6 @@ let
   pkgs = import <nixpkgs> { };
   # the values of the options set for the service by the user of the service
   bitcoin-cfg = config.services.bitcoin;
-  # Script to call local bitcoin node
-  local-cli-script = pkgs.writeShellScriptBin "local-bitcoin-cli" ''
-    export RPC_PASSWORD=$(cat ${bitcoin-cfg.passwordFile} | xargs echo -n)
-    ${bitcoin-cfg.package}/bin/bitcoin-cli -datadir=${bitcoin-cfg.datadir} -conf=${bitcoin-cfg.configPath} -rpcpassword=$RPC_PASSWORD "$@"
-  '';
 in {
   ##### interface. here we define the options that users of our service can specify
   options = {
@@ -35,6 +30,16 @@ in {
         default = "bitcoin";
         description = ''
           Which name of RPC user to use.
+        '';
+      };
+      passwordHMAC = mkOption {
+        type = types.uniq (types.strMatching "[0-9a-f]+\\$[0-9a-f]{64}");
+        example = "f7efda5c189b999524f151318c0c86$d5b51b3beffbc02b724e5d095828e0bc8b2456e9ac8757ae3211a5d9b16a22ae";
+        description = ''
+          Password HMAC-SHA-256 for JSON-RPC connections. Must be a string of the
+          format &lt;SALT-HEX&gt;$&lt;HMAC-HEX&gt;.
+          Tool (Python script) for HMAC generation is available here:
+          <link xlink:href="https://github.com/bitcoin/bitcoin/blob/master/share/rpcauth/rpcauth.py"/>
         '';
       };
       nodePort = mkOption {
@@ -95,7 +100,7 @@ in {
           testnet=${if bitcoin-cfg.testnet then "1" else "0"}
           ${if bitcoin-cfg.testnet then "[test]" else ""}
           rpcallowip=${bitcoin-cfg.nodeAddress}
-          rpcuser=${bitcoin-cfg.nodeUser}
+          rpcauth=${bitcoin-cfg.nodeUser}:${bitcoin-cfg.passwordHMAC}
           rpcport=${toString bitcoin-cfg.nodePort}
           zmqpubrawblock=tcp://127.0.0.1:${toString bitcoin-cfg.nodeZMQPortBlock}
           zmqpubrawtx=tcp://127.0.0.1:${toString bitcoin-cfg.nodeZMQPortTx}
@@ -115,20 +120,7 @@ in {
           Configuration file location for bitcoin.
         '';
       };
-      passwordFile = mkOption {
-        type = types.str;
-        default = "/run/keys/btcpassword";
-        description = ''
-          Location of file with password for RPC.
-        '';
-      };
-      passwordFileService = mkOption {
-        type = types.str;
-        default = "btcpassword-key.service";
-        description = ''
-          Service that indicates that passwordFile is ready.
-        '';
-      };
+
     };
   };
 
@@ -138,24 +130,29 @@ in {
     environment.etc."bitcoin.conf" = {
       text = bitcoin-cfg.config; # we can use values of options for this service here
     };
-    # Write shortcut script to run commands on the node
-    environment.systemPackages = [
-      local-cli-script
-    ];
+    # User to run the node 
+    users.users.bitcoin = {
+      name = "bitcoin";
+      group = "bitcoin";
+      description = "bitcoin daemon user";
+      home = bitcoin-cfg.datadir;
+      isSystemUser = true;
+    };
+    users.groups.bitcoin = {};
     # Create systemd service
     systemd.services.bitcoin = {
       enable = true;
       description = "Bitcoin node";
-      after = ["network.target" bitcoin-cfg.passwordFileService];
-      wants = ["network.target" bitcoin-cfg.passwordFileService];
+      after = ["network.target"];
+      wants = ["network.target"];
       script = ''
-        export RPC_PASSWORD=$(cat ${bitcoin-cfg.passwordFile} | xargs echo -n)
-        ${bitcoin-cfg.package}/bin/bitcoind -datadir=${bitcoin-cfg.datadir} -conf=${bitcoin-cfg.configPath} -rpcpassword=$RPC_PASSWORD ${if bitcoin-cfg.reindex then "-reindex" else ""}
+        chmod 700 ${bitcoin-cfg.datadir}
+        ${bitcoin-cfg.package}/bin/bitcoind -datadir=${bitcoin-cfg.datadir} -conf=${bitcoin-cfg.configPath} ${if bitcoin-cfg.reindex then "-reindex" else ""}
       '';
       serviceConfig = {
           Restart = "always";
           RestartSec = 30;
-          User = "root";
+          User = "bitcoin";
         };
       wantedBy = ["multi-user.target"];
     };
