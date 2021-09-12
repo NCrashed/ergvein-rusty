@@ -72,8 +72,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     tokio::spawn({
         let rates_cache = rates_cache.clone();
+        let is_testnet = cfg.is_testnet.clone();
         async move {
-            rates_requester(rates_cache).await;
+            rates_requester(is_testnet, rates_cache).await;
         }
     });
 
@@ -83,8 +84,9 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let db = db.clone();
         let fee_cache = fee_cache.clone();
         let rates_cache = rates_cache.clone();
+        let is_testnet = cfg.is_testnet.clone();
         async move {
-            if let Err(err) = indexer_server(listen_addr, db, fee_cache, rates_cache).await {
+            if let Err(err) = indexer_server(is_testnet, listen_addr, db, fee_cache, rates_cache).await {
                 eprintln!("Failed to listen TCP server: {}", err);
             }
         }

@@ -16,6 +16,7 @@ use super::logic::*;
 use super::metrics::*;
 
 pub async fn indexer_server<A>(
+    is_testnet: bool,
     addr: A,
     db: Arc<DB>,
     fees: Arc<Mutex<FeesCache>>,
@@ -44,7 +45,7 @@ where
 
                         let peer_addr = format!("{}", socket.peer_addr().unwrap());
                         let (msg_future, msg_stream, msg_sink) =
-                            indexer_logic(peer_addr.clone(), db.clone(), fees, rates).await;
+                            indexer_logic(is_testnet, peer_addr.clone(), db.clone(), fees, rates).await;
                         pin_mut!(msg_sink);
 
                         let (abort_logic, reg_logic_abort) = AbortHandle::new_pair();

@@ -50,7 +50,7 @@ async fn request_btc_rates() -> Result<DashMap<Fiat, Rate>, Box<dyn Error>> {
     Ok(rates)
 }
 
-pub async fn rates_requester(cache: Arc<RatesCache>) {
+pub async fn rates_requester(is_testnet: bool, cache: Arc<RatesCache>) {
     loop {
         match request_btc_rates().await {
             Err(err) => {
@@ -58,7 +58,7 @@ pub async fn rates_requester(cache: Arc<RatesCache>) {
             }
             Ok(rates) => {
                 println!("Bitcoin rates are {:?}", rates);
-                cache.insert(Currency::Btc, rates);
+                cache.insert(if is_testnet {Currency::TBtc} else {Currency::Btc}, rates);
             }
         }
         tokio::time::sleep(Duration::from_secs(60)).await;
