@@ -2,10 +2,19 @@ use super::fee::FeesCache;
 use super::metrics::*;
 use super::rates::RatesCache;
 use crate::filter::*;
+use bitcoin::consensus::encode::serialize;
 use bitcoin_utxo::storage::chain::get_chain_height;
+
+use ergvein_filters::mempool::ErgveinMempoolFilter;
+use ergvein_protocol::message::MemFilter;
+use ergvein_protocol::message::Message;
 use ergvein_protocol::message::*;
 use futures::sink;
 use futures::{Future, Sink, Stream};
+
+use mempool_filters::filtertree::FilterTree;
+
+use mempool_filters::txtree::TxTree;
 use rand::{thread_rng, Rng};
 use rocksdb::DB;
 use std::sync::{Arc, Mutex};
@@ -36,6 +45,9 @@ pub async fn indexer_logic(
     db: Arc<DB>,
     fees: Arc<Mutex<FeesCache>>,
     rates: Arc<RatesCache>,
+    txtree: Arc<TxTree>,
+    ftree: Arc<FilterTree>,
+    full_filter: Arc<tokio::sync::RwLock<Option<ErgveinMempoolFilter>>>,
 ) -> (
     impl Future<Output = Result<(), IndexerError>>,
     impl Stream<Item = Message> + Unpin,
@@ -56,13 +68,19 @@ pub async fn indexer_logic(
                 db.clone(),
                 fees,
                 rates,
+                txtree,
+                ftree,
+                full_filter.clone(),
                 &mut in_reciver,
                 &out_sender,
             );
             tokio::pin!(filters_fut);
 
             let announce_fut = announce_filters(is_testnet, db.clone(), &out_sender);
+            let announce_mempool_filters_fut =
+                announce_mempool_filters(full_filter.clone(), &&out_sender);
             tokio::pin!(announce_fut);
+            tokio::pin!(announce_mempool_filters_fut);
 
             let mut close = false;
             while !close {
@@ -82,6 +100,16 @@ pub async fn indexer_logic(
                         }
                     },
                     res = &mut announce_fut => match res {
+                        Err(e) => {
+                            eprintln!("Failed to announce filters to client {}, reason: {:?}", addr, e);
+                            close = true;
+                        }
+                        Ok(_) => {
+                            eprintln!("Impossible, fitlers announce ended to client {}", addr);
+                            close = true;
+                        }
+                    },
+                    res = &mut announce_mempool_filters_fut => match res {
                         Err(e) => {
                             eprintln!("Failed to announce filters to client {}, reason: {:?}", addr, e);
                             close = true;
@@ -205,6 +233,9 @@ async fn serve_filters(
     db: Arc<DB>,
     fees: Arc<Mutex<FeesCache>>,
     rates: Arc<RatesCache>,
+    txtree: Arc<TxTree>,
+    ftree: Arc<FilterTree>,
+    full_filter: Arc<tokio::sync::RwLock<Option<ErgveinMempoolFilter>>>,
     msg_reciever: &mut mpsc::UnboundedReceiver<Message>,
     msg_sender: &mpsc::UnboundedSender<Message>,
 ) -> Result<(), IndexerError> {
@@ -299,6 +330,48 @@ async fn serve_filters(
                     }
                     msg_sender.send(Message::Rates(resp)).unwrap();
                 }
+                Message::GetFullFilter => {
+                    println!("GetFullFilter");
+                    let ffilter = full_filter.read().await;
+                    if let Some(filter) = ffilter.clone() {
+                        let resp = MemFilter(filter.content);
+                        msg_sender.send(Message::FullFilter(resp)).unwrap();
+                    }
+                }
+                Message::GetMemFilters => {
+                    println!("GetMemFilters");
+                    let ftree = ftree.clone();
+                    let mut fpairs: Vec<FilterPrefixPair> = ftree
+                        .iter()
+                        .map(|kv| {
+                            let (k, v) = kv.pair();
+                            FilterPrefixPair {
+                                prefix: TxPrefix(*k),
+                                filter: MemFilter(v.content.clone()),
+                            }
+                        })
+                        .collect();
+
+                    fpairs.sort_by_key(|fp| fp.prefix.clone());
+                    println!("Sending {} filter pairs", fpairs.len());
+                    msg_sender.send(Message::MemFilters(fpairs)).unwrap();
+                }
+                Message::GetMempool(prefixes) => {
+                    println!("GetMempool");
+                    let txtree = txtree.clone();
+                    for TxPrefix(pref) in prefixes {
+                        if let Some(ptxs) = txtree.get(pref) {
+                            let txs = ptxs.value();
+                            let mut data: Vec<Vec<u8>> = Vec::new();
+                            txs.values().for_each(|(tx, _)| data.push(serialize(tx)));
+                            let chunk = MempoolChunkResp {
+                                prefix: TxPrefix(*pref),
+                                txs: data,
+                            };
+                            msg_sender.send(Message::MempoolChunk(chunk)).unwrap();
+                        };
+                    }
+                }
                 _ => (),
             }
         }
@@ -324,6 +397,22 @@ async fn announce_filters(
             filters,
         });
         msg_sender.send(resp).unwrap();
+    }
+}
+
+async fn announce_mempool_filters(
+    full_filter: Arc<tokio::sync::RwLock<Option<ErgveinMempoolFilter>>>,
+    msg_sender: &mpsc::UnboundedSender<Message>,
+) -> Result<(), IndexerError> {
+    let mut old_filt = None;
+    loop {
+        tokio::time::sleep(Duration::from_secs(3)).await;
+        let ffilt_read = full_filter.read().await;
+        if old_filt != *ffilt_read {
+            println!("Sending FullFilterInv");
+            msg_sender.send(Message::FullFilterInv).unwrap();
+            old_filt = ffilt_read.clone();
+        }
     }
 }
 

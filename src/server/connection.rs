@@ -1,9 +1,14 @@
 use super::fee::FeesCache;
 use super::rates::RatesCache;
+
+use ergvein_filters::mempool::ErgveinMempoolFilter;
 use ergvein_protocol::message::*;
 use futures::future::{AbortHandle, Abortable, Aborted};
 use futures::pin_mut;
 use futures::{future, Sink, SinkExt, Stream, StreamExt};
+
+use mempool_filters::filtertree::FilterTree;
+use mempool_filters::txtree::TxTree;
 use rocksdb::DB;
 use std::error::Error;
 use std::fmt::Display;
@@ -21,6 +26,9 @@ pub async fn indexer_server<A>(
     db: Arc<DB>,
     fees: Arc<Mutex<FeesCache>>,
     rates: Arc<RatesCache>,
+    txtree: Arc<TxTree>,
+    ftree: Arc<FilterTree>,
+    full_filter: Arc<tokio::sync::RwLock<Option<ErgveinMempoolFilter>>>,
 ) -> Result<(), std::io::Error>
 where
     A: ToSocketAddrs + Display,
@@ -40,12 +48,24 @@ where
                     let db = db.clone();
                     let fees = fees.clone();
                     let rates = rates.clone();
+                    let txtree = txtree.clone();
+                    let ftree = ftree.clone();
+                    let full_filter = full_filter.clone();
                     async move {
                         ACTIVE_CONNS_GAUGE.inc();
 
                         let peer_addr = format!("{}", socket.peer_addr().unwrap());
-                        let (msg_future, msg_stream, msg_sink) =
-                            indexer_logic(is_testnet, peer_addr.clone(), db.clone(), fees, rates).await;
+                        let (msg_future, msg_stream, msg_sink) = indexer_logic(
+                            is_testnet,
+                            peer_addr.clone(),
+                            db.clone(),
+                            fees,
+                            rates,
+                            txtree,
+                            ftree,
+                            full_filter,
+                        )
+                        .await;
                         pin_mut!(msg_sink);
 
                         let (abort_logic, reg_logic_abort) = AbortHandle::new_pair();
