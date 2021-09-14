@@ -67,15 +67,17 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
     tokio::spawn({
         let fee_cache = fee_cache.clone();
+        let is_testnet = cfg.is_testnet.clone();
         async move {
-            fees_requester(fee_cache).await;
+            fees_requester(is_testnet, fee_cache).await;
         }
     });
 
     tokio::spawn({
         let rates_cache = rates_cache.clone();
+        let is_testnet = cfg.is_testnet.clone();
         async move {
-            rates_requester(rates_cache).await;
+            rates_requester(is_testnet, rates_cache).await;
         }
     });
 
@@ -88,9 +90,11 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let txtree = txtree.clone();
         let ftree = ftree.clone();
         let full_filter = full_filter.clone();
+        let is_testnet = cfg.is_testnet.clone();
         async move {
             if let Err(err) =
                 indexer_server(
+                    is_testnet,
                     listen_addr,
                     db,
                     fee_cache,
@@ -108,9 +112,10 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let db = db.clone();
         let db_name = cfg.db_name.clone();
         let m_addr = cfg.metrics_addr.clone();
+        let is_testnet = cfg.is_testnet.clone();
         async move {
             println!("Start serving metrics at {}", m_addr);
-            serve_metrics(m_addr, db, db_name).await;
+            serve_metrics(is_testnet, m_addr, db, db_name).await;
         }
     });
 
@@ -129,6 +134,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
 
         let (utxo_sink, utxo_stream, sync_mutex, abort_utxo_handle, restart_registration) =
             sync_filters(
+                cfg.is_testnet,
                 db.clone(),
                 cache.clone(),
                 cfg.fork_depth,
@@ -168,7 +174,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
         let res = Abortable::new(
             connect(
                 &cfg.node_address,
-                constants::Network::Bitcoin,
+                if cfg.is_testnet {constants::Network::Testnet} else {constants::Network::Bitcoin},
                 "rust-client".to_string(),
                 0,
                 msg_stream,

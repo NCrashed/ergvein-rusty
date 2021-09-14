@@ -40,6 +40,7 @@ pub enum IndexerError {
 }
 
 pub async fn indexer_logic(
+    is_testnet: bool,
     addr: String,
     db: Arc<DB>,
     fees: Arc<Mutex<FeesCache>>,
@@ -56,12 +57,13 @@ pub async fn indexer_logic(
     let (out_sender, out_reciver) = mpsc::unbounded_channel::<Message>();
     let logic_future = {
         async move {
-            handshake(addr.clone(), db.clone(), &mut in_reciver, &out_sender).await?;
+            handshake(is_testnet, addr.clone(), db.clone(), &mut in_reciver, &out_sender).await?;
 
             let timeout = tokio::time::sleep(Duration::from_secs(CONNECTION_DROP_TIMEOUT));
             tokio::pin!(timeout);
 
-            let messages_fut = message_handler(
+            let filters_fut = serve_filters(
+                is_testnet,
                 addr.clone(),
                 db.clone(),
                 fees,
@@ -72,9 +74,9 @@ pub async fn indexer_logic(
                 &mut in_reciver,
                 &out_sender,
             );
-            tokio::pin!(messages_fut);
+            tokio::pin!(filters_fut);
 
-            let announce_fut = announce_filters(db.clone(), &out_sender);
+            let announce_fut = announce_filters(is_testnet, db.clone(), &out_sender);
             let announce_mempool_filters_fut =
                 announce_mempool_filters(full_filter.clone(), &&out_sender);
             tokio::pin!(announce_fut);
@@ -87,7 +89,7 @@ pub async fn indexer_logic(
                         eprintln!("Connection closed by mandatory timeout {}", addr);
                         close = true;
                     },
-                    res = &mut messages_fut => match res {
+                    res = &mut filters_fut => match res {
                         Err(e) => {
                             eprintln!("Failed to serve filters to client {}, reason: {:?}", addr, e);
                             close = true;
@@ -132,12 +134,13 @@ pub async fn indexer_logic(
 }
 
 async fn handshake(
+    is_testnet: bool,
     addr: String,
     db: Arc<DB>,
     msg_reciever: &mut mpsc::UnboundedReceiver<Message>,
     msg_sender: &mpsc::UnboundedSender<Message>,
 ) -> Result<(), IndexerError> {
-    let ver_msg = build_version_message(db);
+    let ver_msg = build_version_message(is_testnet, db);
     msg_sender
         .send(Message::Version(ver_msg.clone()))
         .map_err(|e| {
@@ -191,7 +194,7 @@ async fn handshake(
     Ok(())
 }
 
-fn build_version_message(db: Arc<DB>) -> VersionMessage {
+fn build_version_message(is_testnet: bool, db: Arc<DB>) -> VersionMessage {
     // "standard UNIX timestamp in seconds"
     let timestamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
@@ -208,7 +211,7 @@ fn build_version_message(db: Arc<DB>) -> VersionMessage {
         time: timestamp,
         nonce,
         scan_blocks: vec![ScanBlock {
-            currency: Currency::Btc,
+            currency: if is_testnet {Currency::TBtc} else {Currency::Btc},
             version: Version {
                 major: 1,
                 minor: 0,
@@ -220,11 +223,12 @@ fn build_version_message(db: Arc<DB>) -> VersionMessage {
     }
 }
 
-fn is_supported_currency(currency: &Currency) -> bool {
-    *currency == Currency::Btc
+fn is_supported_currency(is_testnet: bool, currency: &Currency) -> bool {
+    *currency == (if is_testnet {Currency::TBtc} else {Currency::Btc})
 }
 
-async fn message_handler(
+async fn serve_filters(
+    is_testnet: bool,
     addr: String,
     db: Arc<DB>,
     fees: Arc<Mutex<FeesCache>>,
@@ -246,7 +250,7 @@ async fn message_handler(
                         req.start,
                         req.start + req.amount as u64
                     );
-                    if !is_supported_currency(&req.currency) {
+                    if !is_supported_currency(is_testnet, &req.currency) {
                         msg_sender
                             .send(Message::Reject(RejectMessage {
                                 id: msg.id(),
@@ -294,9 +298,9 @@ async fn message_handler(
                 Message::GetFee(curs) => {
                     let mut resp = vec![];
                     for cur in curs {
-                        if is_supported_currency(cur) {
+                        if is_supported_currency(is_testnet, cur) {
                             let fees = fees.lock().unwrap();
-                            if let Some(f) = make_fee_resp(&fees, cur) {
+                            if let Some(f) = make_fee_resp(is_testnet, &fees, cur) {
                                 resp.push(f);
                             }
                         }
@@ -306,7 +310,7 @@ async fn message_handler(
                 Message::GetRates(reqs) => {
                     let mut resp = vec![];
                     for req in reqs {
-                        if is_supported_currency(&req.currency) {
+                        if is_supported_currency(is_testnet, &req.currency) {
                             if let Some(fiats) = rates.get(&req.currency) {
                                 let mut rate_resps = vec![];
                                 for fiat in &req.fiats {
@@ -375,6 +379,7 @@ async fn message_handler(
 }
 
 async fn announce_filters(
+    is_testnet: bool,
     db: Arc<DB>,
     msg_sender: &mpsc::UnboundedSender<Message>,
 ) -> Result<(), IndexerError> {
@@ -388,7 +393,7 @@ async fn announce_filters(
             })
             .collect();
         let resp = Message::Filters(FiltersResp {
-            currency: Currency::Btc,
+            currency: if is_testnet {Currency::TBtc} else {Currency::Btc},
             filters,
         });
         msg_sender.send(resp).unwrap();
@@ -411,12 +416,12 @@ async fn announce_mempool_filters(
     }
 }
 
-fn make_fee_resp(fees: &FeesCache, currency: &Currency) -> Option<FeeResp> {
+fn make_fee_resp(is_testnet: bool, fees: &FeesCache, currency: &Currency) -> Option<FeeResp> {
     match currency {
         Currency::Btc => {
             let f = &fees.btc;
             Some(FeeResp::Btc((
-                Currency::Btc,
+                if is_testnet {Currency::TBtc} else {Currency::Btc},
                 FeeBtc {
                     fast_conserv: f.fastest_fee as u64,
                     fast_econom: f.fastest_fee as u64,
