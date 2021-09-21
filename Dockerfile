@@ -3,7 +3,7 @@ RUN apt-get update && apt-get install -y clang
 COPY . .
 RUN cargo build --release
 
-FROM debian:buster-slim
+FROM debian:bullseye-slim
 COPY --from=builder target/release/ergvein-rusty /usr/local/bin/ergvein-rusty
 VOLUME /data
 WORKDIR /data
