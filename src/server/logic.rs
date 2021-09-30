@@ -384,19 +384,20 @@ async fn announce_filters(
     msg_sender: &mpsc::UnboundedSender<Message>,
 ) -> Result<(), IndexerError> {
     loop {
-        let h = filters_height_changes(&db, Duration::from_secs(3)).await;
-        let filters = read_filters(&db, h, 1)
+        let filter_height_to_announce = filters_height_changes(&db, Duration::from_secs(3)).await;
+        let filter_height_to_announce_i64 = filter_height_to_announce as u64;
+        read_filters(&db, filter_height_to_announce, 1)
             .iter()
-            .map(|(h, f)| Filter {
-                block_id: h.to_vec(),
-                filter: f.content.clone(),
-            })
-            .collect();
-        let resp = Message::Filters(FiltersResp {
-            currency: if is_testnet {Currency::TBtc} else {Currency::Btc},
-            filters,
-        });
-        msg_sender.send(resp).unwrap();
+            .enumerate()
+            .map(|(heigh_offset, (height, filter))| Message::Filter (FilterEvent {
+                height: filter_height_to_announce_i64 + heigh_offset as u64,
+                currency: if is_testnet {Currency::TBtc} else {Currency::Btc},
+                block_id: height.to_vec(),
+                filter: filter.content.clone()
+            }))
+            .for_each (|m| {
+                msg_sender.send(m).unwrap();
+            });
     }
 }
 
