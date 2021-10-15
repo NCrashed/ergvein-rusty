@@ -140,10 +140,10 @@ pub fn app_config () -> Option<AppConfig>  {
     let matches = app.get_matches();
     let is_testnet = matches.is_present("testnet");
     let str_address = matches.value_of("bitcoin").unwrap_or(if is_testnet {"127.0.0.1:18333"} else {"127.0.0.1:8333"});
-    let address: SocketAddr = str_address.parse().ok()?;
+    let node_address: SocketAddr = str_address.parse().ok()?;
     let db_name = matches.value_of("data")?.to_string();
     let host = matches.value_of("host")?.to_string();
-    let port = value_t!(matches, "port", u32).unwrap_or(if is_testnet {18333} else {8333});
+    let port = value_t!(matches, "port", u32).unwrap_or(if is_testnet {18667} else {8667});
     let metrics_host = value_t!(matches, "metrics-host", IpAddr).ok()?;
     let metrics_port = value_t!(matches, "metrics-port", u16).ok()?;
     let metrics_addr = SocketAddr::new(metrics_host, metrics_port);
@@ -155,17 +155,17 @@ pub fn app_config () -> Option<AppConfig>  {
     let mempool_timeout = Duration::from_secs(value_t!(matches, "mempool-timeout", u64).unwrap_or(60));
 
     Some(AppConfig {
-        is_testnet: is_testnet,
-        node_address : address,
-        db_name : db_name, 
-        host : host,
-        port : port,
-        metrics_addr : metrics_addr,
-        fork_depth : fork_depth,
-        max_cache : max_cache,
-        flush_period : flush_period,
-        block_batch : block_batch,
-        mempool_period : mempool_period,
-        mempool_timeout : mempool_timeout
+        is_testnet,
+        node_address,
+        db_name,
+        host,
+        port,
+        metrics_addr,
+        fork_depth,
+        max_cache,
+        flush_period,
+        block_batch,
+        mempool_period,
+        mempool_timeout
     })
 }

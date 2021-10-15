@@ -411,7 +411,7 @@ dependencies = [
 [[package]]
 name = "ergvein-protocol"
 version = "0.1.0"
-source = "git+https://github.com/hexresearch/ergvein-protocol?rev=58fcfc7711f23ff0d787002ae075618c6b33b649#58fcfc7711f23ff0d787002ae075618c6b33b649"
+source = "git+https://github.com/hexresearch/ergvein-protocol?rev=6e85b2ac79adc282d3adb27adb1ea5cadfeba97d#6e85b2ac79adc282d3adb27adb1ea5cadfeba97d"
 dependencies = [
  "consensus-encode",
  "fix",

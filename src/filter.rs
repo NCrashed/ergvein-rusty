@@ -89,8 +89,8 @@ pub fn store_filter(
     }
 
     let mut write_options = WriteOptions::default();
-    write_options.set_sync(false);
-    write_options.disable_wal(true);
+    write_options.set_sync(true);
+    write_options.disable_wal(false);
     db.write_opt(batch, &write_options)
 }
 
@@ -199,5 +199,5 @@ async fn discrepancy_watch (is_testnet : bool, db: Arc<DB>, sync_mutex: Arc<Mute
         eprintln! ("{}", btc_actual_height - btc_scanned_height);
         if (btc_actual_height - btc_scanned_height) > max_discrepancy {break;}
     }
-    
+
 }
