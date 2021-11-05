@@ -53,7 +53,7 @@ in {
 Where:
 - ExternalAddress is IP of hosting machine thus an address of indexer
 - HMAC credentials for bitcoin node RPC. Follow this to generate your own https://github.com/bitcoin/bitcoin/tree/master/share/rpcauth
-- UTXO_COUNT is number of UTXO stored in RAM cache. Optimal values : 32 Gb - 40000000, 16 Gb - 20000000. Feel free to experiment with it but beware of out of memory error on high values
+- UTXO_COUNT is number of UTXO stored in RAM cache. Max memory consumption: 15Gb at 40000000, 10.5Gb at 20000000. Feel free to experiment with it but beware of out of memory error on high values
 2. Edit configuration.nix
 - add created module to import
 ```
