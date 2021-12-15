@@ -18,8 +18,10 @@ cargo run --release -- 127.0.0.1:8333
 We have official docker image [ergvein/ergvein-index-server:rusty](https://hub.docker.com/r/ergvein/ergvein-index-server/tags?page=1&ordering=last_updated&name=rusty) built from the `Dockerfile`.
 
 ```
-docker run --volume ergveindata:/data ergvein/ergvein-index-server:rusty --host 0.0.0.0 --bitcoin bitcoin-node-host:8333
+docker run --rm --volume ergveindata:/data --network host ergvein/ergvein-index-server:rusty --host 0.0.0.0 --bitcoin 127.0.0.1:8333
 ```
+Here we use no network isolation and assumes that you have running BitcoinCore on the `8333` port.
+
 # How to host as service on NixOS
 1. Create nix module based on following code:
 ```
