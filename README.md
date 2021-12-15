@@ -1,4 +1,4 @@
-Rust implementation of indexing node for [ergvein][https://github.com/hexresearch/ergvein] mobile wallet.
+Rust implementation of indexing node for [ergvein](https://github.com/hexresearch/ergvein) mobile wallet.
 
 # How to build
 
