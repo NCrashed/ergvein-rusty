@@ -22,6 +22,7 @@ pub struct BtcFee {
     pub fastest_fee: u32,
     pub half_hour_fee: u32,
     pub hour_fee: u32,
+    pub minimum_fee: u32,
 }
 
 impl Default for BtcFee {
@@ -30,12 +31,13 @@ impl Default for BtcFee {
             fastest_fee: 0,
             half_hour_fee: 0,
             hour_fee: 0,
+            minimum_fee: 0,
         }
     }
 }
 
 async fn request_btc_fees() -> Result<BtcFee, Error> {
-    let request_url = "https://bitcoinfees.earn.com/api/v1/fees/recommended";
+    let request_url = "https://mempool.space/api/v1/fees/recommended";
     let response = reqwest::get(request_url).await?;
     Ok(response.json().await)?
 }
@@ -47,6 +49,7 @@ pub async fn fees_requester(is_testnet: bool, cache: Arc<Mutex<FeesCache>>) {
             fastest_fee: 1,
             half_hour_fee: 1,
             hour_fee: 1,
+            minimum_fee: 1,
         };
 
         println!("Bitcoin fees are {:?}", fee);
