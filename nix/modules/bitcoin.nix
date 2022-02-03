@@ -80,7 +80,7 @@ in {
         type = types.bool;
         default = false;
         description = ''
-          Start with -reindex flag. 
+          Start with -reindex flag.
         '';
       };
 
@@ -91,6 +91,18 @@ in {
           Path to blockchain database on filesystem.
         '';
       };
+
+      extraConfig = mkOption {
+        type = types.lines;
+        default = "";
+        example = ''
+          par=16
+          rpcthreads=16
+          logips=1
+        '';
+        description = "Additional configurations to be appended to <filename>bitcoin.conf</filename>.";
+      };
+
       config = mkOption {
         type = types.str;
         default = ''
@@ -107,8 +119,10 @@ in {
           dbcache=2048
           rpcworkqueue=128
           rpcclienttimeout=30
+
+          ${bitcoin-cfg.extraConfig}
         '';
-        
+
         description = ''
           Configuration file for bitcoin.
         '';
@@ -130,7 +144,7 @@ in {
     environment.etc."bitcoin.conf" = {
       text = bitcoin-cfg.config; # we can use values of options for this service here
     };
-    # User to run the node 
+    # User to run the node
     users.users.bitcoin = {
       name = "bitcoin";
       group = "bitcoin";
