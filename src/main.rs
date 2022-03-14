@@ -38,7 +38,7 @@ use mempool_filters::txtree::TxTree;
 use mempool_filters::worker::mempool_worker;
 use std::error::Error;
 use std::sync::Arc;
-use std::sync::Mutex;
+use tokio::sync::Mutex;
 use tokio::time::Duration;
 
 use bitcoin::network::constants;

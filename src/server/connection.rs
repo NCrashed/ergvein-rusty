@@ -12,7 +12,8 @@ use mempool_filters::txtree::TxTree;
 use rocksdb::DB;
 use std::error::Error;
 use std::fmt::Display;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 use tokio::net::{TcpListener, TcpStream, ToSocketAddrs};
 use tokio_util::codec::{FramedRead, FramedWrite};
 

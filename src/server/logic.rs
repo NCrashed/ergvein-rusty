@@ -17,9 +17,9 @@ use mempool_filters::filtertree::FilterTree;
 use mempool_filters::txtree::TxTree;
 use rand::{thread_rng, Rng};
 use rocksdb::DB;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
-use tokio::sync::mpsc;
+use tokio::sync::{mpsc, Mutex};
 use tokio::time::Duration;
 use tokio_stream::wrappers::UnboundedReceiverStream;
 
@@ -78,7 +78,7 @@ pub async fn indexer_logic(
 
             let announce_fut = announce_filters(is_testnet, db.clone(), &out_sender);
             let announce_mempool_filters_fut =
-                announce_mempool_filters(full_filter.clone(), &&out_sender);
+                announce_mempool_filters(full_filter.clone(), &out_sender);
             tokio::pin!(announce_fut);
             tokio::pin!(announce_mempool_filters_fut);
 
@@ -299,7 +299,7 @@ async fn serve_filters(
                     let mut resp = vec![];
                     for cur in curs {
                         if is_supported_currency(is_testnet, cur) {
-                            let fees = fees.lock().unwrap();
+                            let fees = fees.lock().await;
                             if let Some(f) = make_fee_resp(is_testnet, &fees, cur) {
                                 resp.push(f);
                             }
@@ -314,7 +314,7 @@ async fn serve_filters(
                             if let Some(fiats) = rates.get(&req.currency) {
                                 let mut rate_resps = vec![];
                                 for fiat in &req.fiats {
-                                    if let Some(rate) = fiats.get(&fiat) {
+                                    if let Some(rate) = fiats.get(fiat) {
                                         rate_resps.push(FiatRate {
                                             fiat: *fiat,
                                             rate: *rate.value(),

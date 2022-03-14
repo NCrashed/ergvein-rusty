@@ -1,6 +1,7 @@
 use reqwest::Error;
 use serde::Deserialize;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
+use tokio::sync::Mutex;
 use tokio::time::Duration;
 
 #[derive(Debug)]
@@ -44,7 +45,7 @@ async fn request_btc_fees() -> Result<BtcFee, Error> {
 
 pub async fn fees_requester(is_testnet: bool, cache: Arc<Mutex<FeesCache>>) {
     if is_testnet {
-        let mut cache = cache.lock().unwrap();
+        let mut cache = cache.lock().await;
         let fee = BtcFee {
             fastest_fee: 1,
             half_hour_fee: 1,
@@ -61,7 +62,7 @@ pub async fn fees_requester(is_testnet: bool, cache: Arc<Mutex<FeesCache>>) {
                     eprintln!("Failed to request BTC fees: {:?}", err);
                 }
                 Ok(fee) => {
-                    let mut cache = cache.lock().unwrap();
+                    let mut cache = cache.lock().await;
                     println!("Bitcoin fees are {:?}", fee);
                     cache.btc = fee;
                 }
